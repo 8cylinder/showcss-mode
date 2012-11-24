@@ -28,20 +28,22 @@
 
 ; ----------------------------------------------------
 
-(defun showcss/get_css_file()
+(defun showcss/set-css-buffer()
   "Find the name of the css file using this regex:
 <!-- show-css: \\(.*\\) -->
 Eg:
-<!-- show-css: /home/sm/projects/some project/site/css/main.css -->
-"
+<!-- show-css: /home/sm/projects/some project/site/css/main.css -->"
   (save-excursion
 	(goto-char (point-min))
 	(if (re-search-forward "<!-- show-css: \\(.*\\) -->" nil t)
 		()
 	  (error "\"<!-- show-css: ... -->\" does not exist in html file")))
 
+  (setq showcss/css-buffer (find-file-noselect css-file))
+
+
   ; RETURN css file name
-  (match-string 1))
+  ;(match-string 1))
 
 (defun showcss/what-am-i()
   "What is the cursor on?  Should return class,
@@ -50,20 +52,30 @@ id, or nil and the class name or id name"
 
   (re-search-backward "[ \t]" nil t)
   (re-search-forward " \\(id\\|class\\)=\"\\(.*?\\)\"" nil nil 1)
+  (goto-char saved-point)
   ; is the saved-point between (match-beginning 0) and (match-end 0)?
   (if (and (> saved-point (match-beginning 0))
 		   (< saved-point (match-end 0)))
-   	  (showcss/highlight-html-selector (match-beginning 0) (match-end 0))
-	(showcss/remove-highlights))
+	  (progn
+		; RETURN:
+		(list
+		 (substring-no-properties (match-string 1))
+		 (substring-no-properties (match-string 2))))
 
-  (setq selector-type
-   		(substring-no-properties (match-string 1)))
-  (setq selector-name
-   		(substring-no-properties (match-string 2)))
-  (goto-char saved-point)
+	; RETURN: nil
+	(list nil nil)
+
+		;(showcss/highlight-html-selector (match-beginning 0) (match-end 0))
+	;(showcss/remove-highlights))
+
+
+  ;(setq selector-type
+  ; 		(substring-no-properties (match-string 1)))
+  ;(setq selector-name
+  ; 		(substring-no-properties (match-string 2)))
 
   ; RETURN the selector type and name
-  (list selector-type selector-name)
+  ;(list selector-type selector-name)
 )
 
 (defun showcss/show_source (css-file)
@@ -142,10 +154,17 @@ id, or nil and the class name or id name"
   ; if is a selector:
   (if (or (string= (nth 0 css-values) "class")
 		  (string= (nth 0 css-values) "id"))
-	  (showcss/scroll-to-selector showcss/css-buffer css-values) ; then
-	() ; else: remove overlays
-
-
+	  ; if:
+	  ;  highlight selector
+	  ;  show buffer
+	  ;  find match
+	  ;  highlight
+	  (progn
+		(showcss/highlight-html)
+		(showcss/display-css css-values)
+	; else:
+	;  remove overlays
+	(showcss/remove-overlays)
 )
 
 (defvar showcss-map nil)
@@ -163,7 +182,5 @@ id, or nil and the class name or id name"
 
   ; set the css buffer
   (setq showcss/css-buffer
-		(showcss/show_source
-		 (showcss/get_css_file)))
-
+		(showcss/set-css-buffer))
 )
