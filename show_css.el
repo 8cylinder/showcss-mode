@@ -1,3 +1,4 @@
+;; multiple classes? class="dog cat cow"
 ;;
 
 (defgroup showcss nil
@@ -56,7 +57,7 @@ Eg:
 	(goto-char (point-min))
 	(if (re-search-forward "<!-- showcss: \\(.*\\) -->" nil t)
 		()
-	  (error "\"<!-- showcss: ... -->\" does not exist in html file")))
+	  (error "\"<!-- showcss: ... -->\" does not exist in this file")))
 
   (setq showcss/css-buffer (find-file-noselect (match-string 1)))
 )
@@ -68,17 +69,18 @@ id, or nil and the class name or id name"
   (setq saved-point (point))
 
   (re-search-backward "[ \t\n]" nil t)
-  (re-search-forward " \\(id\\|class\\)=\"\\(.*?\\)\"" nil nil 1)
+  ;(re-search-forward " \\(id\\|class\\)=\"\\(.*?\\)\"" nil nil 1)
+  (re-search-forward " \\(\\(id\\|class\\)=\"\\(.*?\\)\"\\)" nil nil 1)
   (goto-char saved-point)
   ; is the saved-point between (match-beginning 0) and (match-end 0)?
-  (if (and (> saved-point (match-beginning 0))
-		   (< saved-point (match-end 0)))
+  (if (and (> saved-point (match-beginning 1))
+		   (< saved-point (match-end 1)))
 	  (progn
-		(showcss/highlight-html-selector (match-beginning 0) (match-end 0))
+		(showcss/highlight-html-selector (match-beginning 1) (match-end 1))
 		; RETURN: (selector type, selector name)
 		(list
-		 (substring-no-properties (match-string 1))
-		 (substring-no-properties (match-string 2))))
+		 (substring-no-properties (match-string 2))
+		 (substring-no-properties (match-string 3))))
 
 
 	; RETURN: (nil, nil)
@@ -94,6 +96,7 @@ id, or nil and the class name or id name"
   "Scroll the css file to show the selector"
   (setq selector-type (nth 0 css-values))
   (setq selector-name (nth 1 css-values))
+  ;(setq template "\\(%s\\)[ \n{]")
   (setq full-selector nil)
 
   (cond ((string= selector-type "class")
@@ -105,8 +108,7 @@ id, or nil and the class name or id name"
 		(t
 		 (error (format "Wrong type of selector: %s" selector-type)))
 		)
-
-  (message "looking for: %s" full-selector)
+  (setq full-re-selector (format "\\(%s\\)[ \n{]" full-selector))
 
   (setq html-buffer (current-buffer))
   (switch-to-buffer-other-window showcss/css-buffer)
@@ -115,16 +117,16 @@ id, or nil and the class name or id name"
   ; doesn't scroll to the top
   (setq saved-point (point))
   (goto-char (point-min))
-  (if (search-forward full-selector nil t)
+  (if (re-search-forward full-re-selector nil t)
 	  (progn
-		(showcss/highlight-css-selector (match-beginning 0) (match-end 0)))
-	(goto-char saved-point))
+		(showcss/highlight-css-selector (match-beginning 1) (match-end 1)))
+	(goto-char saved-point)
+	(message "Not found: %s" full-selector))
 
   (switch-to-buffer-other-window html-buffer))
 
 (defun showcss/highlight-css-selector (start end)
   "Highlight the matched selector"
-  ;(showcss/remove-highlights)
   (delete-overlay showcss/last-css-overlay)
   (setq ov (make-overlay start end))
   (overlay-put ov 'face 'showcss/css-face)
@@ -132,7 +134,6 @@ id, or nil and the class name or id name"
 
 (defun showcss/highlight-html-selector (start end)
   "Highlight the current selector in the html file"
-  ;(showcss/remove-highlights)
   (delete-overlay showcss/last-html-overlay)
   (setq ov (make-overlay start end))
   (overlay-put ov 'face 'showcss/html-face)
@@ -156,17 +157,18 @@ id, or nil and the class name or id name"
 		(showcss/scroll-to-selector css-values))
 	; else:
 	;  remove overlays
-	(showcss/remove-highlights)
-	)
-  )
+	(showcss/remove-highlights)))
 
 (defun showcss/keymove()
   ""
   (if showcss-mode
-	  (message "showcss-mode")
-	(message "NOT showcss-mode"))
-)
+	  (showcss/main)))
 
+(defvar showcss-map nil)
+(when (null showcss-map)
+  (setq showcss-map (make-sparse-keymap))
+  (define-key showcss-map (kbd "C-c C-c") 'showcss/main)
+  (define-key showcss-map (kbd "C-c C-p") 'showcss/pop))
 
 (define-minor-mode showcss-mode
   "Display the css of the class or id the cursor is at"
@@ -183,39 +185,26 @@ id, or nil and the class name or id name"
 
   (if showcss-mode
 	  (progn
-		(defvar showcss-map nil)
-		(when (null showcss-map)
-		  (setq showcss-map (make-sparse-keymap))
-		  (define-key showcss-map (kbd "C-c C-c") 'showcss/main)
-		  (define-key showcss-map (kbd "C-c C-p") 'showcss/pop))
+		(defadvice next-line (after showcss/advise-main)
+		  "Advice around cursor movement"
+		  (showcss/keymove))
+		(defadvice previous-line (after showcss/advise-main)
+		  "Advice around cursor movement"
+		  (showcss/keymove))
+		(defadvice right-char (after showcss/advise-main)
+		  "Advice around cursor movement"
+		  (showcss/keymove))
+		(defadvice left-char (after showcss/advise-main)
+		  "Advice around cursor movement"
+		  (showcss/keymove))
 
-		  (if showcss-mode
-			(progn
-			  (defadvice next-line (after showcss/advise-main)
-				"Advice around cursor movement"
-				(showcss/keymove))
-			  (defadvice previous-line (after showcss/advise-main)
-				"Advice around cursor movement"
-				(showcss/keymove))
-			  (defadvice right-char (after showcss/advise-main)
-				"Advice around cursor movement"
-				(showcss/keymove))
-			  (defadvice left-char (after showcss/advise-main)
-				"Advice around cursor movement"
-				(showcss/keymove))
+		(ad-activate 'next-line)
+		(ad-activate 'previous-line)
+		(ad-activate 'right-char)
+		(ad-activate 'left-char))
 
-			  ;(ad-activate 'next-line)
-			  ;(ad-activate 'previous-line)
-			  ;(ad-activate 'right-char)
-			  ;(ad-activate 'left-char)
-			  )
-
-			(message "not showcss-mode")
-			;(ad-deactivate 'next-line)
-			;(ad-deactivate 'previous-line)
-			;(ad-deactivate 'right-char)
-			;(ad-deactivate 'left-char)
-			)
-		)
-	)
-)
+	(showcss/remove-highlights)
+	(ad-deactivate 'next-line)
+	(ad-deactivate 'previous-line)
+	(ad-deactivate 'right-char)
+	(ad-deactivate 'left-char)))
