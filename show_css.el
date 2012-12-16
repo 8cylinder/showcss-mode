@@ -18,7 +18,8 @@
 
 (defcustom showcss/projects
   '(("html" . "css"))
-  "A list of HTML files and their assosiated CSS files"
+  "A list of HTML files and their assosiated CSS files.
+An html file can have more than one assosiated CSS file"
   ;:default nil
   :group 'showcss
   :type '(repeat
@@ -48,8 +49,22 @@
 
 ; ----------------------------------------------------
 
+
+; 1) look for a set var in customize: html<-->css
+; 2) look for "showcss" string in html file
+; 3) use css tag in html file
+
 (defun showcss/set-css-buffer()
-  "Find the name of the css file using this regex:
+  "showcss will look for css files in the following places:
+1.  Look for values set in customize.
+2.  Look for the <!-- showcss: ... --> in the html file
+3.  Look at the css declarations in the html head
+
+Showcss will only use local files.  So if you use css on a remote
+server, you will need to use the showcss tag in you html file and
+have it point to a local copy of that css.
+
+Find the name of the css file using this regex:
 <!-- showcss: \\(.*\\) -->
 Eg:
 <!-- showcss: /home/sm/projects/some project/site/css/main.css -->"
@@ -59,8 +74,8 @@ Eg:
 		()
 	  (error "\"<!-- showcss: ... -->\" does not exist in this file")))
 
-  (setq showcss/css-buffer (find-file-noselect (match-string 1)))
-)
+  (setq showcss/css-buffer (find-file-noselect (match-string 1))))
+
 
 (defun showcss/what-am-i()
   "What is the cursor on?  Should return class,
@@ -82,15 +97,16 @@ id, or nil and the class name or id name"
 		 (substring-no-properties (match-string 2))
 		 (substring-no-properties (match-string 3))))
 
-
 	; RETURN: (nil, nil)
 	(list nil nil)
 ))
+
 
 (defun showcss/display-css()
   "Display the css buffer"
   ; TODO: check if css-file exists
   (display-buffer showcss/css-buffer))
+
 
 (defun showcss/scroll-to-selector (css-values)
   "Scroll the css file to show the selector"
@@ -125,12 +141,14 @@ id, or nil and the class name or id name"
 
   (switch-to-buffer-other-window html-buffer))
 
+
 (defun showcss/highlight-css-selector (start end)
   "Highlight the matched selector"
   (delete-overlay showcss/last-css-overlay)
   (setq ov (make-overlay start end))
   (overlay-put ov 'face 'showcss/css-face)
   (setq showcss/last-css-overlay ov))
+
 
 (defun showcss/highlight-html-selector (start end)
   "Highlight the current selector in the html file"
@@ -139,11 +157,12 @@ id, or nil and the class name or id name"
   (overlay-put ov 'face 'showcss/html-face)
   (setq showcss/last-html-overlay ov))
 
+
 (defun showcss/remove-highlights()
   "remove the last highlight from the html buffer"
   (delete-overlay showcss/last-html-overlay)
-  (delete-overlay showcss/last-css-overlay)
-)
+  (delete-overlay showcss/last-css-overlay))
+
 
 (defun showcss/main()
   (interactive)
@@ -159,10 +178,12 @@ id, or nil and the class name or id name"
 	;  remove overlays
 	(showcss/remove-highlights)))
 
+
 (defun showcss/keymove()
   ""
   (if showcss-mode
 	  (showcss/main)))
+
 
 (defvar showcss-map nil)
 (when (null showcss-map)
