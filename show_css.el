@@ -1,5 +1,4 @@
-;; multiple classes? class="dog cat cow"
-;;
+
 
 (defgroup showcss nil
   "Customize showcss"
@@ -58,7 +57,7 @@ An html file can have more than one assosiated CSS file"
   "showcss will look for css files in the following places:
 1.  Look for values set in customize.
 2.  Look for the <!-- showcss: ... --> in the html file
-3.  Look at the css declarations in the html head
+3.  Look at the css declarations in the html <head>
 
 Showcss will only use local files.  So if you use css on a remote
 server, you will need to use the showcss tag in you html file and
@@ -68,11 +67,53 @@ Find the name of the css file using this regex:
 <!-- showcss: \\(.*\\) -->
 Eg:
 <!-- showcss: /home/sm/projects/some project/site/css/main.css -->"
+
+  (setq showcss/csslist nil)
+
+  ; get the CUSTOMIZE variables
+
+  (mapc (lambda (html-css)
+		  (let ((html (file-truename (car html-css)))
+				(css (file-truename (cdr html-css))))
+			(if (and
+				 ; is html this file?
+				 (equal html (buffer-file-name))
+				 ; and, does the css exist?
+				 (file-readable-p css))
+				 (setq showcss/csslist (cons css showcss/csslist)))))
+		showcss/projects)
+
+  ; get the <link> css
+  (edebug)
+  (save-excursion
+	(goto-char (point-min))
+	(while (re-search-forward "<link\\(.\\|\n\\)*?>" nil t)
+	  (let ((tag-start (match-beginning 0))
+			(tag-end (match-end 0)))
+		(goto-char tag-start)
+		(if (re-search-forward "\\(type=\"text/css\"\\|rel=\"stylesheet\"\\)" tag-end t)
+			(progn
+			  (goto-char tag-start)
+			  (if (re-search-forward "href=\"\\(.*?\\)\"" tag-end t)
+				  (let ((css-file
+						 (file-truename (substring-no-properties (match-string 1)))))
+					(if (file-readable-p css-file)
+						(setq showcss/csslist (cons css-file showcss/csslist)))))))
+		(goto-char tag-end)
+		)))
+
+
+  ; get the <!-- showcss ... --> comment if any
   (save-excursion
 	(goto-char (point-min))
 	(if (re-search-forward "<!-- showcss: \\(.*\\) -->" nil t)
-		()
-	  (error "\"<!-- showcss: ... -->\" does not exist in this file")))
+		(setq showcss/csslist
+			  (substring-no-properties (cons (match-string 1) showcss/csslist)))
+	  ;(error "\"<!-- showcss: ... -->\" does not exist in this file")
+	  ))
+
+  (mapc (lambda (css-file)
+		  ) showcss/csslist)
 
   (setq showcss/css-buffer (find-file-noselect (match-string 1))))
 
@@ -198,14 +239,15 @@ id, or nil and the class name or id name"
   :lighter " SCss"
   :keymap showcss-map
 
-  ; set the css buffer
-  (setq showcss/html-buffer
-		(current-buffer))
-  (setq showcss/css-buffer
-		(showcss/set-css-buffer))
 
   (if showcss-mode
 	  (progn
+	    ; set the css buffer
+		(setq showcss/html-buffer
+			  (current-buffer))
+		(setq showcss/css-buffer
+			  (showcss/set-css-buffer))
+
 		(defadvice next-line (after showcss/advise-main)
 		  "Advice around cursor movement"
 		  (showcss/keymove))
