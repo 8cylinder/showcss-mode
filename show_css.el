@@ -84,7 +84,6 @@ Eg:
 		showcss/projects)
 
   ; get the <link> css
-  (edebug)
   (save-excursion
 	(goto-char (point-min))
 	(while (re-search-forward "<link\\(.\\|\n\\)*?>" nil t)
@@ -102,20 +101,24 @@ Eg:
 		(goto-char tag-end)
 		)))
 
-
   ; get the <!-- showcss ... --> comment if any
   (save-excursion
 	(goto-char (point-min))
 	(if (re-search-forward "<!-- showcss: \\(.*\\) -->" nil t)
 		(setq showcss/csslist
-			  (substring-no-properties (cons (match-string 1) showcss/csslist)))
-	  ;(error "\"<!-- showcss: ... -->\" does not exist in this file")
-	  ))
+			  (cons (substring-no-properties (match-string 1)) showcss/csslist)))
+	  )
 
+  ; load the css files into buffers
   (mapc (lambda (css-file)
+		  (setq showcss/css-buffer
+				(cons
+				 (find-file-noselect css-file)
+				 showcss/css-buffer))
 		  ) showcss/csslist)
+)
 
-  (setq showcss/css-buffer (find-file-noselect (match-string 1))))
+  ;(setq showcss/css-buffer (find-file-noselect (match-string 1))))
 
 
 (defun showcss/what-am-i()
