@@ -171,17 +171,24 @@ id, or nil and the class name or id name"
   (setq full-re-selector (format "\\(%s\\)[ \n{]" full-selector))
 
   (setq html-buffer (current-buffer))
-  (switch-to-buffer-other-window showcss/css-buffer)
-  ; save current point so that if search doesn't find
-  ; anything, we can return to last point so that the buffer
-  ; doesn't scroll to the top
-  (setq saved-point (point))
-  (goto-char (point-min))
-  (if (re-search-forward full-re-selector nil t)
-	  (progn
-		(showcss/highlight-css-selector (match-beginning 1) (match-end 1)))
-	(goto-char saved-point)
-	(message "Not found: %s" full-selector))
+  (catch 'break
+	(dolist (css-buffer showcss/css-buffer found)
+	  (switch-to-buffer-other-window css-buffer)
+      ; save current point so that if search doesn't find
+      ; anything, we can return to last point so that the buffer
+      ; doesn't scroll to the top
+	  (setq saved-point (point))
+	  (goto-char (point-min))
+	  (if (re-search-forward full-re-selector nil t)
+		  (progn
+			(showcss/highlight-css-selector (match-beginning 1) (match-end 1))
+			(setq fount t)
+			(throw 'break))
+		(goto-char saved-point)
+		(setq found nil)
+		(message "Not found: %s" full-selector))
+
+	))
 
   (switch-to-buffer-other-window html-buffer))
 
