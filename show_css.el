@@ -89,7 +89,7 @@ Eg:
 	(goto-char (point-min))
 	(if (re-search-forward "<!-- showcss: \\(.*\\) -->" nil t)
 		()
-	  (error "\"<!-- showcss: ... -->\" does not exist in this file")))
+	  (error "\"<!-- showcss: <FILE> -->\" does not exist in this file")))
 
   (setq showcss/css-buffer (find-file-noselect (match-string 1)))
 )
@@ -101,7 +101,6 @@ id, or nil and the class name or id name"
   (setq saved-point (point))
 
   (re-search-backward "[ \t\n]" nil t)
-  ;(re-search-forward " \\(id\\|class\\)=\"\\(.*?\\)\"" nil nil 1)
   (re-search-forward " \\(\\(id\\|class\\)=\"\\(.*?\\)\"\\)" nil nil 1)
   (goto-char saved-point)
   ; is the saved-point between (match-beginning 0) and (match-end 0)?
@@ -140,7 +139,7 @@ id, or nil and the class name or id name"
 		(t
 		 (error (format "Wrong type of selector: %s" selector-type)))
 		)
-  (setq full-re-selector (format "\\(%s\\)[ \n{]" full-selector))
+  (setq full-re-selector (format "\\(%s\\)[ ,\n{]" full-selector))
 
   (setq html-buffer (current-buffer))
   (switch-to-buffer-other-window showcss/css-buffer)
@@ -229,14 +228,24 @@ id, or nil and the class name or id name"
 		(defadvice left-char (after showcss/advise-main)
 		  "Advice around cursor movement"
 		  (showcss/keymove))
+		(defadvice forward-word (after showcss/advise-main)
+		  "Advice around cursor movement"
+		  (showcss/keymove))
+		(defadvice backward-word (after showcss/advise-main)
+		  "Advice around cursor movement"
+		  (showcss/keymove))
 
 		(ad-activate 'next-line)
 		(ad-activate 'previous-line)
 		(ad-activate 'right-char)
-		(ad-activate 'left-char))
+		(ad-activate 'left-char)
+		(ad-activate 'forward-word)
+		(ad-activate 'backward-word))
 
 	(showcss/remove-highlights)
 	(ad-deactivate 'next-line)
 	(ad-deactivate 'previous-line)
 	(ad-deactivate 'right-char)
+	(ad-deactivate 'forward-word)
+	(ad-deactivate 'backward-word)
 	(ad-deactivate 'left-char)))
