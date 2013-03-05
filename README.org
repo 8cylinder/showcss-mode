@@ -1,6 +1,7 @@
 
 * Show CSS
 
+In beta. Master branch should be functional, other branches probably won't be.
 
 ** Overview
 
@@ -9,11 +10,37 @@ Show CSS mode for emacs.
 With showcss-mode turned on, as you navigate around an HTML file the
 matching css for that element will be displayed in another buffer.
 
+[[http://i.imgur.com/kYjTqxk.png]]
+
 In the current html buffer if you move the cursor over a class=".*?"
 or id=".*?" a buffer will open with the external css file loaded and
 show the matching css.
 
+For it to work now, showcss mode looks for this regex in the html file:
+  : <!-- showcss: \\(.*\\) -->
+
+For example:
+  : <!-- showcss: /home/user/projects/facebook/site/css/main.css -->
+or
+  : <!-- showcss: ./sass_files/main.sass-->
+
+The file doesn't have to be css, it can be any file that looks like
+css, such as sass.
+
+Eventualy showcss mode will look in these places:
+  1) The regex in the html file
+  2) Read the css tags in the head of the html file
+  3) A default location set in Customize. i.e: ./css
+  4) A list of locations also set in Customize
 
 ** Customize options
 
-alt x, customize-group showcss
+#+BEGIN_SRC emacs-lisp
+  <alt x>, customize-group, showcss
+#+END_SRC
+
+** Todo
+
+  1) Show css from multiple sources
+  2) Show css from style attributes that have multiple classes.
+     e.g. style="style1 style2 style3"
