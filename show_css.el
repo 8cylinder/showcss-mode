@@ -1,3 +1,33 @@
+;;; COPYRIGHT NOTICE
+;;
+;; Copyright (C) 2012 Sheldon McGrandle.
+;;
+;; This program is free software; you can redistribute it and/or modify
+;; it under the terms of the GNU General Public License as published by
+;; the Free Software Foundation; either version 2, or (at your option)
+;; any later version.
+;;
+;; This program is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;; GNU General Public License for more details.
+;;
+;; You should have received a copy of the GNU General Public License
+;; along with GNU Emacs; see the file COPYING.  If not, write to the
+;; author of this program <mboyer@ireq-robot.hydro.qc.ca> or to the
+;; Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+
+;; Send bug reports to Sheldon McGrandle <developer@rednemesis.com>
+
+
+;;; DESCRIPTION AND USAGE
+;;
+
+;;; INSTALLATION
+;;
+
+;;; BUGS
+;;
 
 
 (defgroup showcss nil
@@ -15,25 +45,12 @@
   "Highlight the selector the cursor is in"
   :group 'showcss)
 
-(defcustom showcss/projects
-  '(("html" . "css"))
-  "A list of HTML files and their assosiated CSS files.
-An html file can have more than one assosiated CSS file"
-  ;:default nil
-  :group 'showcss
-  :type '(repeat
-		  (cons (file :tag "HTML file")
-				(file :tag "CSS file"))))
-
 (defcustom showcss/default-css-dir
   "./css"
   "Subdir in project that contains the css files"
   :group 'showcss
   :type 'file)
 
-
-; add customize to asocciate html files with a css file
-; so the string doesn't need to be in the html file.
 
 ; ----------------------------------------------------
 
@@ -49,7 +66,6 @@ An html file can have more than one assosiated CSS file"
 ; ----------------------------------------------------
 
 
-; 1) look for a set var in customize: html<-->css
 ; 2) look for "showcss" string in html file
 ; 3) use css tag in html file
 
@@ -69,21 +85,8 @@ Eg:
 <!-- showcss: /home/sm/projects/some project/site/css/main.css -->"
 
   (setq showcss/csslist nil)
-
-  ; get the CUSTOMIZE variables
-
-  (mapc (lambda (html-css)
-		  (let ((html (file-truename (car html-css)))
-				(css (file-truename (cdr html-css))))
-			(if (and
-				 ; is html this file?
-				 (equal html (buffer-file-name))
-				 ; and, does the css exist?
-				 (file-readable-p css))
-				 (setq showcss/csslist (cons css showcss/csslist)))))
-		showcss/projects)
-
-  ; get the <link> css
+  (setq showcss/css-buffer nil)
+  ;; get the <link> css
   (save-excursion
 	(goto-char (point-min))
 	(while (re-search-forward "<link\\(.\\|\n\\)*?>" nil t)
@@ -93,32 +96,30 @@ Eg:
 		(if (re-search-forward "\\(type=\"text/css\"\\|rel=\"stylesheet\"\\)" tag-end t)
 			(progn
 			  (goto-char tag-start)
-			  (if (re-search-forward "href=\"\\(.*?\\)\"" tag-end t)
+			  (if (re-search-forward "href=\"\\([^:]*?\\)\"" tag-end t)
 				  (let ((css-file
 						 (file-truename (substring-no-properties (match-string 1)))))
-					(if (file-readable-p css-file)
+					(if (file-exists-p css-file)
 						(setq showcss/csslist (cons css-file showcss/csslist)))))))
 		(goto-char tag-end)
 		)))
 
-  ; get the <!-- showcss ... --> comment if any
+  ;; get the <!-- showcss ... --> comment if any
   (save-excursion
 	(goto-char (point-min))
-	(if (re-search-forward "<!-- showcss: \\(.*\\) -->" nil t)
-		(setq showcss/csslist
-			  (cons (substring-no-properties (match-string 1)) showcss/csslist)))
-	  )
+	(while (re-search-forward "<!-- showcss: \\(.*\\) -->" nil t)
+      (if (file-exists-p (match-string 1))
+          (setq showcss/csslist
+                (cons (substring-no-properties (match-string 1)) showcss/csslist))))
+    )
 
   ; load the css files into buffers
   (mapc (lambda (css-file)
-		  (setq showcss/css-buffer
-				(cons
-				 (find-file-noselect css-file)
-				 showcss/css-buffer))
-		  ) showcss/csslist)
-)
-
-  ;(setq showcss/css-buffer (find-file-noselect (match-string 1))))
+          (setq showcss/css-buffer
+                (cons
+                 (find-file-noselect css-file)
+                 showcss/css-buffer)))
+        showcss/csslist))
 
 
 (defun showcss/what-am-i()
@@ -146,12 +147,6 @@ id, or nil and the class name or id name"
 ))
 
 
-(defun showcss/display-css()
-  "Display the css buffer"
-  ; TODO: check if css-file exists
-  (display-buffer showcss/css-buffer))
-
-
 (defun showcss/scroll-to-selector (css-values)
   "Scroll the css file to show the selector"
   (setq selector-type (nth 0 css-values))
@@ -169,11 +164,11 @@ id, or nil and the class name or id name"
 		 (error (format "Wrong type of selector: %s" selector-type)))
 		)
   (setq full-re-selector (format "\\(%s\\)[ \n{]" full-selector))
-
   (setq html-buffer (current-buffer))
   (catch 'break
 	(dolist (css-buffer showcss/css-buffer found)
-	  (switch-to-buffer-other-window css-buffer)
+	  ;(switch-to-buffer-other-window css-buffer)
+	  (set-buffer css-buffer)
       ; save current point so that if search doesn't find
       ; anything, we can return to last point so that the buffer
       ; doesn't scroll to the top
@@ -182,19 +177,22 @@ id, or nil and the class name or id name"
 	  (if (re-search-forward full-re-selector nil t)
 		  (progn
 			(showcss/highlight-css-selector (match-beginning 1) (match-end 1))
-			(setq fount t)
-			(throw 'break))
+            (switch-to-buffer-other-window css-buffer)
+            (goto-char (match-beginning 1))
+            (switch-to-buffer-other-window html-buffer)
+            (message "")
+			(setq fount t)  ; why is this here?
+			(throw 'break t))
 		(goto-char saved-point)
 		(setq found nil)
 		(message "Not found: %s" full-selector))
 
-	))
-
-  (switch-to-buffer-other-window html-buffer))
+	)))
 
 
 (defun showcss/highlight-css-selector (start end)
   "Highlight the matched selector"
+  ;(goto-char start)
   (delete-overlay showcss/last-css-overlay)
   (setq ov (make-overlay start end))
   (overlay-put ov 'face 'showcss/css-face)
@@ -223,7 +221,6 @@ id, or nil and the class name or id name"
   (if (or (string= (nth 0 css-values) "class")
 		  (string= (nth 0 css-values) "id"))
 	  (progn  ; then
-		(showcss/display-css)
 		(showcss/scroll-to-selector css-values))
 	; else:
 	;  remove overlays
@@ -249,14 +246,12 @@ id, or nil and the class name or id name"
   :lighter " SCss"
   :keymap showcss-map
 
-
   (if showcss-mode
 	  (progn
-	    ; set the css buffer
-		(setq showcss/html-buffer
-			  (current-buffer))
-		(setq showcss/css-buffer
-			  (showcss/set-css-buffer))
+        ;; set the css buffer
+        (setq showcss/html-buffer
+              (current-buffer))
+        (showcss/set-css-buffer)
 
 		(defadvice next-line (after showcss/advise-main)
 		  "Advice around cursor movement"
@@ -270,14 +265,24 @@ id, or nil and the class name or id name"
 		(defadvice left-char (after showcss/advise-main)
 		  "Advice around cursor movement"
 		  (showcss/keymove))
+		(defadvice forward-word (after showcss/advise-main)
+		  "Advice around cursor movement"
+		  (showcss/keymove))
+		(defadvice backward-word (after showcss/advise-main)
+		  "Advice around cursor movement"
+		  (showcss/keymove))
 
 		(ad-activate 'next-line)
 		(ad-activate 'previous-line)
 		(ad-activate 'right-char)
-		(ad-activate 'left-char))
+		(ad-activate 'left-char)
+		(ad-activate 'forward-word)
+		(ad-activate 'backward-word))
 
 	(showcss/remove-highlights)
 	(ad-deactivate 'next-line)
 	(ad-deactivate 'previous-line)
 	(ad-deactivate 'right-char)
+	(ad-deactivate 'forward-word)
+	(ad-deactivate 'backward-word)
 	(ad-deactivate 'left-char)))
