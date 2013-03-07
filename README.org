@@ -31,7 +31,7 @@ Eventualy showcss mode will look in these places:
   1) The regex in the html file
   2) Read the css tags in the head of the html file
   3) A default location set in Customize. i.e: ./css
-  4) A list of locations also set in Customize
+  4) +A list of locations also set in Customize+
 
 ** Customize options
 
@@ -41,6 +41,5 @@ Eventualy showcss mode will look in these places:
 
 ** Todo
 
-  1) Show css from multiple sources
-  2) Show css from style attributes that have multiple classes.
+  1) Show css from style attributes that have multiple classes.
      e.g. style="style1 style2 style3"

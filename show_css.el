@@ -30,14 +30,6 @@
 ;;
 
 
-;;
-
-;;; INSTALLATION
-;;
-
-;;; BUGS
-;;
-
 
 (defgroup showcss nil
   "Customize showcss"
@@ -45,23 +37,23 @@
   :group 'Text)
 
 (defface showcss/css-face
-  '((t :background "grey"))
+  '((t :background "green"))
   "Highlight the matched selector in the css file"
   :group 'showcss)
 
 (defface showcss/html-face
-  '((t :background "grey"))
+  '((t :background "green"))
   "Highlight the selector the cursor is in"
   :group 'showcss)
 
-(defcustom showcss/default-css-dir
-  "./css"
-  "Subdir in project that contains the css files"
+(defcustom showcss/use-html-tags
+  t
+  "Use the <link ...> tag in addition to the <!-- --> comments.
+Turn off if you want to only comments to explicitly set the css
+to view"
   :group 'showcss
-  :type 'file)
+  :type 'boolean)
 
-
-; ----------------------------------------------------
 
 (defvar showcss/last-css-overlay (make-overlay 0 0)
   "this is the last overlay set in the css file")
@@ -72,11 +64,6 @@
 (defvar showcss/html-buffer nil
   "The buffer that contains the html file")
 
-; ----------------------------------------------------
-
-
-; 2) look for "showcss" string in html file
-; 3) use css tag in html file
 
 (defun showcss/set-css-buffer()
   "showcss will look for css files in the following places:
@@ -95,23 +82,24 @@ Eg:
 
   (setq showcss/csslist nil)
   (setq showcss/css-buffer nil)
-  ;; get the <link> css
-  (save-excursion
-	(goto-char (point-min))
-	(while (re-search-forward "<link\\(.\\|\n\\)*?>" nil t)
-	  (let ((tag-start (match-beginning 0))
-			(tag-end (match-end 0)))
-		(goto-char tag-start)
-		(if (re-search-forward "\\(type=\"text/css\"\\|rel=\"stylesheet\"\\)" tag-end t)
-			(progn
-			  (goto-char tag-start)
-			  (if (re-search-forward "href=\"\\([^:]*?\\)\"" tag-end t)
-				  (let ((css-file
-						 (file-truename (substring-no-properties (match-string 1)))))
-					(if (file-exists-p css-file)
-						(setq showcss/csslist (cons css-file showcss/csslist)))))))
-		(goto-char tag-end)
-		)))
+
+  (if showcss/use-html-tags
+      ;; get the <link> css
+      (save-excursion
+        (goto-char (point-min))
+        (while (re-search-forward "<link\\(.\\|\n\\)*?>" nil t)
+          (let ((tag-start (match-beginning 0))
+                (tag-end (match-end 0)))
+            (goto-char tag-start)
+            (if (re-search-forward "\\(type=\"text/css\"\\|rel=\"stylesheet\"\\)" tag-end t)
+                (progn
+                  (goto-char tag-start)
+                  (if (re-search-forward "href=\"\\([^:]*?\\)\"" tag-end t)
+                      (let ((css-file
+                             (file-truename (substring-no-properties (match-string 1)))))
+                        (if (file-exists-p css-file)
+                            (setq showcss/csslist (cons css-file showcss/csslist)))))))
+            (goto-char tag-end)))))
 
   ;; get the <!-- showcss ... --> comment if any
   (save-excursion
@@ -119,10 +107,9 @@ Eg:
 	(while (re-search-forward "<!-- showcss: \\(.*\\) -->" nil t)
       (if (file-exists-p (match-string 1))
           (setq showcss/csslist
-                (cons (substring-no-properties (match-string 1)) showcss/csslist))))
-    )
+                (cons (substring-no-properties (match-string 1)) showcss/csslist)))))
 
-  ; load the css files into buffers
+  ;; load the css files into buffers
   (mapc (lambda (css-file)
           (setq showcss/css-buffer
                 (cons
@@ -140,19 +127,18 @@ id, or nil and the class name or id name"
   (re-search-backward "[ \t\n]" nil t)
   (re-search-forward " \\(\\(id\\|class\\)=\"\\(.*?\\)\"\\)" nil nil 1)
   (goto-char saved-point)
-  ; is the saved-point between (match-beginning 0) and (match-end 0)?
+  ;; is the saved-point between (match-beginning 0) and (match-end 0)?
   (if (and (> saved-point (match-beginning 1))
 		   (< saved-point (match-end 1)))
 	  (progn
-		(showcss/highlight-html-selector (match-beginning 1) (match-end 1))
-		; RETURN: (selector type, selector name)
+		(showcss/highlight-html-selector (match-beginning 3) (match-end 3))
+		;; RETURN: (selector type, selector name)
 		(list
 		 (substring-no-properties (match-string 2))
 		 (substring-no-properties (match-string 3))))
 
-	; RETURN: (nil, nil)
-	(list nil nil)
-))
+	;; RETURN: (nil, nil)
+	(list nil nil)))
 
 
 (defun showcss/scroll-to-selector (css-values)
@@ -175,11 +161,11 @@ id, or nil and the class name or id name"
   (setq html-buffer (current-buffer))
   (catch 'break
 	(dolist (css-buffer showcss/css-buffer found)
-	  ;(switch-to-buffer-other-window css-buffer)
+	  ;;(switch-to-buffer-other-window css-buffer)
 	  (set-buffer css-buffer)
-      ; save current point so that if search doesn't find
-      ; anything, we can return to last point so that the buffer
-      ; doesn't scroll to the top
+      ;; save current point so that if search doesn't find
+      ;; anything, we can return to last point so that the buffer
+      ;; doesn't scroll to the top
 	  (setq saved-point (point))
 	  (goto-char (point-min))
 	  (if (re-search-forward full-re-selector nil t)
@@ -193,14 +179,11 @@ id, or nil and the class name or id name"
 			(throw 'break t))
 		(goto-char saved-point)
 		(setq found nil)
-		(message "Not found: %s" full-selector))
-
-	)))
+		(message "Not found: %s" full-selector)))))
 
 
 (defun showcss/highlight-css-selector (start end)
   "Highlight the matched selector"
-  ;(goto-char start)
   (delete-overlay showcss/last-css-overlay)
   (setq ov (make-overlay start end))
   (overlay-put ov 'face 'showcss/css-face)
@@ -225,13 +208,13 @@ id, or nil and the class name or id name"
   (interactive)
   ""
   (setq css-values (showcss/what-am-i))
-  ; if is a selector:
+  ;; if is a selector:
   (if (or (string= (nth 0 css-values) "class")
 		  (string= (nth 0 css-values) "id"))
-	  (progn  ; then
+	  (progn  ;; then
 		(showcss/scroll-to-selector css-values))
-	; else:
-	;  remove overlays
+	;; else:
+	;;  remove overlays
 	(showcss/remove-highlights)))
 
 
@@ -251,7 +234,7 @@ id, or nil and the class name or id name"
   "Display the css of the class or id the cursor is at"
 
   :init-value nil
-  :lighter " SCss"
+  :lighter " Show"
   :keymap showcss-map
 
   (if showcss-mode
@@ -279,13 +262,17 @@ id, or nil and the class name or id name"
 		(defadvice backward-word (after showcss/advise-main)
 		  "Advice around cursor movement"
 		  (showcss/keymove))
+        (defadvice mouse-set-point (after showcss/advise-main)
+		  "Advice around cursor movement"
+		  (showcss/keymove))
 
 		(ad-activate 'next-line)
 		(ad-activate 'previous-line)
 		(ad-activate 'right-char)
 		(ad-activate 'left-char)
 		(ad-activate 'forward-word)
-		(ad-activate 'backward-word))
+		(ad-activate 'backward-word)
+        (ad-activate 'mouse-set-point))
 
 	(showcss/remove-highlights)
 	(ad-deactivate 'next-line)
@@ -293,4 +280,5 @@ id, or nil and the class name or id name"
 	(ad-deactivate 'right-char)
 	(ad-deactivate 'forward-word)
 	(ad-deactivate 'backward-word)
-	(ad-deactivate 'left-char)))
+	(ad-deactivate 'left-char)
+    (ad-deactivate 'mouse-set-point)))
