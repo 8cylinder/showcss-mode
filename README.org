@@ -31,6 +31,7 @@ of compiling them.  Also showcss-mode will only use local files.  So
 if you use css on a remote server, you will need to use the showcss
 tag in you html file and have it point to a local copy of that css.
 
+Tested on emacs 24.
 
 ** Usage
 
