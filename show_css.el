@@ -57,19 +57,25 @@ to view"
 
 (defvar showcss/last-css-overlay (make-overlay 0 0)
   "this is the last overlay set in the css file")
+(make-variable-buffer-local 'showcss/last-css-overlay)
+
 (defvar showcss/last-html-overlay (make-overlay 0 0)
   "this is the last overlay set in the html file")
+(make-variable-buffer-local 'showcss/last-css-overlay)
+
 (defvar showcss/css-buffer nil
   "The buffer that contains the css file")
+(make-variable-buffer-local 'showcss/css-buffer)
+
 (defvar showcss/html-buffer nil
   "The buffer that contains the html file")
+(make-variable-buffer-local 'showcss/html-buffer)
 
 
 (defun showcss/set-css-buffer()
   "showcss will look for css files in the following places:
-1.  Look for values set in customize.
-2.  Look for the <!-- showcss: ... --> in the html file
-3.  Look at the css declarations in the html <head>
+1.  Look for the <!-- showcss: ... --> in the html file
+2.  Look at the css declarations in the html <head>
 
 Showcss will only use local files.  So if you use css on a remote
 server, you will need to use the showcss tag in you html file and
@@ -221,21 +227,14 @@ id, or nil and the class name or id name"
 (defun showcss/keymove()
   ""
   (if showcss-mode
-	  (showcss/main)))
+      (showcss/main)))
 
-
-(defvar showcss-map nil)
-(when (null showcss-map)
-  (setq showcss-map (make-sparse-keymap))
-  (define-key showcss-map (kbd "C-c C-c") 'showcss/main)
-  (define-key showcss-map (kbd "C-c C-p") 'showcss/pop))
 
 (define-minor-mode showcss-mode
   "Display the css of the class or id the cursor is at"
 
   :init-value nil
   :lighter " Show"
-  :keymap showcss-map
 
   (if showcss-mode
 	  (progn

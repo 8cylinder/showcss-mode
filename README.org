@@ -1,43 +1,65 @@
 
 * Show CSS
 
-In beta. Master branch should be functional, other branches probably won't be.
 
 ** Overview
 
-Show CSS mode for emacs.
+Show CSS is a minor mode for emacs.
 
 With showcss-mode turned on, as you navigate around an HTML file the
 matching css for that element will be displayed in another buffer.
 
 [[http://i.imgur.com/kYjTqxk.png]]
 
-In the current html buffer if you move the cursor over a class=".*?"
+In the current html buffer, if you move the cursor over a class=".*?"
 or id=".*?" a buffer will open with the external css file loaded and
-show the matching css.
+scrolled to the matching selector.
 
-For it to work now, showcss mode looks for this regex in the html file:
-  : <!-- showcss: \\(.*\\) -->
+Show Css will look at the <link> tags and a custom comment tag to get
+the location of external css files.
+
+Show Css looks for a comment with this regex:
+: <!-- showcss: \\(.*\\) -->
 
 For example:
-  : <!-- showcss: /home/user/projects/facebook/site/css/main.css -->
+: <!-- showcss: /home/user/projects/facebook/site/css/main.css -->
 or
-  : <!-- showcss: ./sass_files/main.sass-->
+: <!-- showcss: ./sass_files/main.sass-->
 
-The file doesn't have to be css, it can be any file that looks like
-css, such as sass.
+The comment is useful if you want to use sass files directly instead
+of compiling them.  Also showcss-mode will only use local files.  So
+if you use css on a remote server, you will need to use the showcss
+tag in you html file and have it point to a local copy of that css.
 
-Eventualy showcss mode will look in these places:
-  1) The regex in the html file
-  2) Read the css tags in the head of the html file
-  3) A default location set in Customize. i.e: ./css
-  4) +A list of locations also set in Customize+
+
+** Usage
+
+Put this in your init.el or .emacs file:
+#+BEGIN_SRC emacs-lisp
+  (autoload 'showcss-mode "show_css"
+     "Display the css of the class or id the cursor is at" t)
+#+END_SRC
+
+Personally, I find this mode to distracting to use all the time, so I
+use this function to quickly toggle the mode on and off.
+
+#+BEGIN_SRC emacs-lisp
+  (defun sm/toggle-showcss()
+    "Toggle showcss-mode"
+    (interactive)
+    (if (or (string= major-mode "html-mode")
+            (string= major-mode "nxml-mode")
+            (string= major-mode "handlebars-mode"))
+        (showcss-mode 'toggle)
+      (message "Not in an html mode")))
+  (global-set-key (kbd "C-c C-k") 'sm/toggle-showcss)
+#+END_SRC
 
 ** Customize options
 
-#+BEGIN_SRC emacs-lisp
-  <alt x>, customize-group, showcss
-#+END_SRC
+: <alt x>, customize-group, showcss
+
+Here you can set the faces of the element highlights
 
 ** Todo
 
