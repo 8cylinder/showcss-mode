@@ -9,7 +9,7 @@ Show CSS is a minor mode for emacs.
 With showcss-mode turned on, as you navigate around an HTML file the
 matching css for that element will be displayed in another buffer.
 
-[[http://i.imgur.com/kYjTqxk.png]]
+[[http://i.imgur.com/MzpmExC.gif]]
 
 In the current html buffer, if you move the cursor over a class=".*?"
 or id=".*?" a buffer will open with the external css file loaded and
@@ -31,7 +31,7 @@ of compiling them.  Also showcss-mode will only use local files.  So
 if you use css on a remote server, you will need to use the showcss
 tag in you html file and have it point to a local copy of that css.
 
-Tested on emacs 24.
+*Tested on emacs 24.*
 
 ** Usage
 
