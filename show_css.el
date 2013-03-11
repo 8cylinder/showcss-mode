@@ -61,7 +61,7 @@ to view"
 
 (defvar showcss/last-html-overlay (make-overlay 0 0)
   "this is the last overlay set in the html file")
-(make-variable-buffer-local 'showcss/last-css-overlay)
+(make-variable-buffer-local 'showcss/last-html-overlay)
 
 (defvar showcss/css-buffer nil
   "The buffer that contains the css file")
@@ -82,7 +82,7 @@ server, you will need to use the showcss tag in you html file and
 have it point to a local copy of that css.
 
 Find the name of the css file using this regex:
-<!-- showcss: \\(.*\\) -->
+<!-- showcss: \\(.*?\\) -->
 Eg:
 <!-- showcss: /home/sm/projects/some project/site/css/main.css -->"
 
@@ -111,7 +111,7 @@ Eg:
     ;; get the <!-- showcss ... --> comment if any
     (save-excursion
       (goto-char (point-min))
-      (while (re-search-forward "<!-- showcss: \\(.*\\) -->" nil t)
+      (while (re-search-forward "<!-- showcss: \\(.*?\\) -->" nil t)
         (if (file-exists-p (match-string 1))
             (setq csslist
                   (cons (substring-no-properties (match-string 1)) csslist)))))
@@ -128,24 +128,27 @@ Eg:
 (defun showcss/what-am-i()
   "What is the cursor on?  Should return class,
 id, or nil and the class name or id name"
-  (showcss/remove-highlights)
+  ;(showcss/remove-highlights)
+  ;(delete-overlay showcss/last-css-overlay)
   (let ((saved-point (point)))
-
+    (save-excursion
     (re-search-backward "[ \t\n]" nil t)
-    (re-search-forward " \\(\\(id\\|class\\)=\"\\(.*?\\)\"\\)" nil nil 1)
-    (goto-char saved-point)
-    ;; is the saved-point between (match-beginning 0) and (match-end 0)?
-    (if (and (> saved-point (match-beginning 1))
-             (< saved-point (match-end 1)))
+    (if (re-search-forward " \\(\\(id\\|class\\)=\"\\(.*?\\)\"\\)" nil t 1)
         (progn
-          (showcss/highlight-html-selector (match-beginning 3) (match-end 3))
-          ;; RETURN: (selector type, selector name)
-          (list
-           (substring-no-properties (match-string 2))
-           (substring-no-properties (match-string 3))))
+          (goto-char saved-point)
+          ;; is the saved-point between (match-beginning 0) and (match-end 0)?
+          (if (and (> saved-point (match-beginning 1))
+                   (< saved-point (match-end 1)))
+              (progn
+                (showcss/highlight-html-selector (match-beginning 3) (match-end 3))
+                ;; RETURN: (selector type, selector name)
+                (list
+                 (substring-no-properties (match-string 2))
+                 (substring-no-properties (match-string 3))))
 
-      ;; RETURN: (nil, nil)
-      (list nil nil))))
+            ;; RETURN: (nil, nil)
+            (list nil nil)))
+      (list nil nil)))))
 
 
 (defun showcss/scroll-to-selector (css-values)
@@ -168,8 +171,8 @@ id, or nil and the class name or id name"
           (found nil))
       (catch 'break
         (dolist (css-buffer showcss/css-buffer found)
-          ;;(switch-to-buffer-other-window css-buffer)
           (set-buffer css-buffer)
+          (delete-overlay showcss/last-css-overlay)
           ;; save current point so that if search doesn't find
           ;; anything, we can return to last point so that the buffer
           ;; doesn't scroll to the top
@@ -205,22 +208,23 @@ id, or nil and the class name or id name"
 
 
 (defun showcss/remove-highlights()
-  "remove the last highlight from the html buffer"
+  "remove all highlights from all buffers"
   (delete-overlay showcss/last-html-overlay)
-  (delete-overlay showcss/last-css-overlay))
+  (dolist (css-buffer showcss/css-buffer)
+    (set-buffer css-buffer)
+    (delete-overlay showcss/last-css-overlay)))
+
 
 
 (defun showcss/main()
-  (interactive)
   ""
   (let ((css-values (showcss/what-am-i)))
     ;; if is a selector:
     (if (or (string= (nth 0 css-values) "class")
             (string= (nth 0 css-values) "id"))
-        (progn  ;; then
+        (progn
           (showcss/scroll-to-selector css-values))
-      ;; else:
-      ;;  remove overlays
+      ;; remove overlays
       (showcss/remove-highlights))))
 
 
@@ -237,47 +241,46 @@ id, or nil and the class name or id name"
   :lighter " Show"
 
   (if showcss-mode
-	  (progn
+      (progn
         ;; set the css buffer
-        (setq showcss/html-buffer
-              (current-buffer))
+        ;(setq showcss/html-buffer
+              ;(current-buffer))
         (showcss/set-css-buffer)
 
-		(defadvice next-line (after showcss/advise-main)
-		  "Advice around cursor movement"
-		  (showcss/keymove))
-		(defadvice previous-line (after showcss/advise-main)
-		  "Advice around cursor movement"
-		  (showcss/keymove))
-		(defadvice right-char (after showcss/advise-main)
-		  "Advice around cursor movement"
-		  (showcss/keymove))
-		(defadvice left-char (after showcss/advise-main)
-		  "Advice around cursor movement"
-		  (showcss/keymove))
-		(defadvice forward-word (after showcss/advise-main)
-		  "Advice around cursor movement"
-		  (showcss/keymove))
-		(defadvice backward-word (after showcss/advise-main)
-		  "Advice around cursor movement"
-		  (showcss/keymove))
-        (defadvice mouse-set-point (after showcss/advise-main)
-		  "Advice around cursor movement"
-		  (showcss/keymove))
+        (defadvice next-line (after showcss/advise-main)
+          "Advice around cursor movement"
+          (showcss/keymove))
+        (defadvice previous-line (after showcss/advise-main)
+          "Advice around cursor movement"
+          (showcss/keymove))
+        (defadvice right-char (after showcss/advise-main)
+          "Advice around cursor movement"
+          (showcss/keymove))
+        (defadvice left-char (after showcss/advise-main)
+          "Advice around cursor movement"
+          (showcss/keymove))
+        (defadvice forward-word (after showcss/advise-main)
+          "Advice around cursor movement"
+          (showcss/keymove))
+        (defadvice backward-word (after showcss/advise-main)
+          "Advice around cursor movement"
+          (showcss/keymove))
 
-		(ad-activate 'next-line)
-		(ad-activate 'previous-line)
-		(ad-activate 'right-char)
-		(ad-activate 'left-char)
-		(ad-activate 'forward-word)
-		(ad-activate 'backward-word)
-        (ad-activate 'mouse-set-point))
+        (ad-activate 'next-line)
+        (ad-activate 'previous-line)
+        (ad-activate 'right-char)
+        (ad-activate 'left-char)
+        (ad-activate 'forward-word)
+        (ad-activate 'backward-word))
 
-	(showcss/remove-highlights)
-	(ad-deactivate 'next-line)
-	(ad-deactivate 'previous-line)
-	(ad-deactivate 'right-char)
-	(ad-deactivate 'forward-word)
-	(ad-deactivate 'backward-word)
-	(ad-deactivate 'left-char)
-    (ad-deactivate 'mouse-set-point)))
+    ;; else
+    (showcss/remove-highlights)
+    (ad-deactivate 'next-line)
+    (ad-deactivate 'previous-line)
+    (ad-deactivate 'right-char)
+    (ad-deactivate 'forward-word)
+    (ad-deactivate 'backward-word)
+    (ad-deactivate 'left-char)))
+
+
+(provide 'show_css)

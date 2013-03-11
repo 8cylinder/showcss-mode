@@ -9,6 +9,8 @@ Show CSS is a minor mode for emacs.
 With showcss-mode turned on, as you navigate around an HTML file the
 matching css for that element will be displayed in another buffer.
 
+[[http://i.imgur.com/a5PXBQG.gif]]
+
 In the current html buffer, if you move the cursor over a class=".*?"
 or id=".*?" a buffer will open with the external css file loaded and
 scrolled to the matching selector.
@@ -17,7 +19,7 @@ Show Css will look at the <link> tags and a custom comment tag to get
 the location of external css files.
 
 Show Css looks for a comment with this regex:
-: <!-- showcss: \\(.*\\) -->
+: <!-- showcss: \\(.*?\\) -->
 
 For example:
 : <!-- showcss: /home/user/projects/facebook/site/css/main.css -->
@@ -34,6 +36,7 @@ tag in you html file and have it point to a local copy of that css.
 ** Usage
 
 Put this in your init.el or .emacs file:
+
 #+BEGIN_SRC emacs-lisp
   (autoload 'showcss-mode "show_css"
      "Display the css of the class or id the cursor is at" t)
