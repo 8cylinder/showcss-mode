@@ -41,8 +41,13 @@
   "Highlight the matched selector in the css file"
   :group 'showcss)
 
-(defface showcss/html-face
+(defface showcss/html-matched-face
   '((t :background "green"))
+  "Highlight the selector the cursor is in"
+  :group 'showcss)
+
+(defface showcss/html-unmatched-face
+  '((t :background "red"))
   "Highlight the selector the cursor is in"
   :group 'showcss)
 
@@ -140,11 +145,14 @@ id, or nil and the class name or id name"
           (if (and (> saved-point (match-beginning 1))
                    (< saved-point (match-end 1)))
               (progn
-                (showcss/highlight-html-selector (match-beginning 3) (match-end 3))
                 ;; RETURN: (selector type, selector name)
                 (list
                  (substring-no-properties (match-string 2))
-                 (substring-no-properties (match-string 3))))
+                 (substring-no-properties (match-string 3))
+                 ;; pass on the position so the attribute can
+                 ;; be set with the right face later:
+                 (match-beginning 3)
+                 (match-end 3)))
 
             ;; RETURN: (nil, nil)
             (list nil nil)))
@@ -168,9 +176,11 @@ id, or nil and the class name or id name"
           )
     (let ((full-re-selector (format "\\(%s\\)[ ,\n{]" full-selector))
           (html-buffer (current-buffer))
+          (attribute-start (nth 2 css-values))
+          (attribute-end (nth 3 css-values))
           (found nil))
       (catch 'break
-        (dolist (css-buffer showcss/css-buffer found)
+        (dolist (css-buffer showcss/css-buffer)
           (set-buffer css-buffer)
           (delete-overlay showcss/last-css-overlay)
           ;; save current point so that if search doesn't find
@@ -184,11 +194,18 @@ id, or nil and the class name or id name"
                   (switch-to-buffer-other-window css-buffer)
                   (goto-char (match-beginning 1))
                   (switch-to-buffer-other-window html-buffer)
+                  (setq found t)
                   (message "")
                   (throw 'break t))
               (goto-char saved-point)
-              (setq found nil)
-              (message "Not found: %s" full-selector))))))))
+              (message "Not found: %s" full-selector)))))
+      (set-buffer html-buffer)
+      (if found
+          (showcss/highlight-html-selector
+           attribute-start attribute-end 'showcss/html-matched-face)
+        (showcss/highlight-html-selector
+         attribute-start attribute-end 'showcss/html-unmatched-face))
+      )))
 
 
 (defun showcss/highlight-css-selector (start end)
@@ -199,11 +216,11 @@ id, or nil and the class name or id name"
     (setq showcss/last-css-overlay ov)))
 
 
-(defun showcss/highlight-html-selector (start end)
+(defun showcss/highlight-html-selector (start end html-face)
   "Highlight the current selector in the html file"
   (delete-overlay showcss/last-html-overlay)
   (let ((ov (make-overlay start end)))
-    (overlay-put ov 'face 'showcss/html-face)
+    (overlay-put ov 'face html-face)
     (setq showcss/last-html-overlay ov)))
 
 
@@ -242,9 +259,6 @@ id, or nil and the class name or id name"
 
   (if showcss-mode
       (progn
-        ;; set the css buffer
-        ;(setq showcss/html-buffer
-              ;(current-buffer))
         (showcss/set-css-buffer)
 
         (defadvice next-line (after showcss/advise-main)
