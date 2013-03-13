@@ -9,7 +9,7 @@ Show CSS is a minor mode for emacs.
 With showcss-mode turned on, as you navigate around an HTML file the
 matching css for that element will be displayed in another buffer.
 
-[[http://i.imgur.com/a5PXBQG.gif]]
+[[http://i.imgur.com/VCqEwAp.gif]]
 
 In the current html buffer, if you move the cursor over a class=".*?"
 or id=".*?" a buffer will open with the external css file loaded and
@@ -59,9 +59,11 @@ use this function to quickly toggle the mode on and off.
 
 ** Customize options
 
-: <alt x>, customize-group, showcss
+: <alt x>customize-group<ret>showcss
 
-Here you can set the faces of the element highlights
+Customize three faces; html match found, html no match found, and css
+element.  Also you can set the mode so that it only gets the css
+location from the magic comments and not from the link tag.
 
 ** Todo
 
