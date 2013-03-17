@@ -1,6 +1,12 @@
-;;; COPYRIGHT NOTICE
+;;; show-css.el --- Show the css of the html attribute the cursor is on
 ;;
-;; Copyright (C) 2012 Sheldon McGrandle.
+;; Copyright (C) 2012 Sheldon McGrandle
+;;
+;; Author: Sheldon McGrandle <developer@rednemesis.com>
+;; Version: 1.0
+;; Keywords: languages, css
+;;
+;; This file is not part of GNU Emacs.
 ;;
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -17,10 +23,8 @@
 ;; author of this program <mboyer@ireq-robot.hydro.qc.ca> or to the
 ;; Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 
-;; Send bug reports to Sheldon McGrandle <developer@rednemesis.com>
-
-
-;;; DESCRIPTION AND USAGE
+;;; Commentary:
+;; DESCRIPTION AND USAGE
 ;;
 ;; Show CSS is a minor mode for emacs.
 ;;
@@ -46,9 +50,8 @@
 ;; of compiling them.  Also showcss-mode will only use local files.  So
 ;; if you use css on a remote server, you will need to use the showcss
 ;; tag in you html file and have it point to a local copy of that css.
-
-
-;;; INSTALLATION
+;;
+;; INSTALLATION
 ;;
 ;; Put this in your init.el or .emacs file:
 ;;
@@ -67,12 +70,11 @@
 ;;         (showcss-mode 'toggle)
 ;;       (message "Not in an html mode")))
 ;;   (global-set-key (kbd "C-c C-k") 'sm/toggle-showcss)
-
-
-;;; BUGS
+;;
+;; BUGS
 ;;
 
-
+;;; Code:
 
 (defgroup showcss nil
   "Customize showcss"
@@ -338,5 +340,5 @@ id, or nil and the class name or id name"
     (ad-deactivate 'backward-word)
     (ad-deactivate 'left-char)))
 
-
 (provide 'show_css)
+;;; show-css.el ends here
