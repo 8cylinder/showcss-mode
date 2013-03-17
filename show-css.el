@@ -280,7 +280,6 @@ id, or nil and the class name or id name"
 
 
 (defun showcss/main()
-  ""
   (let ((css-values (showcss/what-am-i)))
     ;; if is a selector:
     (if (or (string= (nth 0 css-values) "class")
@@ -292,8 +291,15 @@ id, or nil and the class name or id name"
 
 
 (defun showcss/keymove()
-  ""
-  (if showcss-mode
+  (if (memq this-command
+            '(next-line
+              previous-line
+              right-char
+              left-char
+              forward-word
+              backward-word
+              forward-sexp
+              backward-sexp))
       (showcss/main)))
 
 
@@ -303,44 +309,10 @@ id, or nil and the class name or id name"
   :init-value nil
   :lighter " Show"
 
-  (if showcss-mode
-      (progn
-        (showcss/set-css-buffer)
-
-        (defadvice next-line (after showcss/advise-main)
-          "Advice around cursor movement"
-          (showcss/keymove))
-        (defadvice previous-line (after showcss/advise-main)
-          "Advice around cursor movement"
-          (showcss/keymove))
-        (defadvice right-char (after showcss/advise-main)
-          "Advice around cursor movement"
-          (showcss/keymove))
-        (defadvice left-char (after showcss/advise-main)
-          "Advice around cursor movement"
-          (showcss/keymove))
-        (defadvice forward-word (after showcss/advise-main)
-          "Advice around cursor movement"
-          (showcss/keymove))
-        (defadvice backward-word (after showcss/advise-main)
-          "Advice around cursor movement"
-          (showcss/keymove))
-
-        (ad-activate 'next-line)
-        (ad-activate 'previous-line)
-        (ad-activate 'right-char)
-        (ad-activate 'left-char)
-        (ad-activate 'forward-word)
-        (ad-activate 'backward-word))
-
+    (if showcss-mode
+        (add-hook 'post-command-hook 'showcss/keymove nil t)
     ;; else
-    (showcss/remove-highlights)
-    (ad-deactivate 'next-line)
-    (ad-deactivate 'previous-line)
-    (ad-deactivate 'right-char)
-    (ad-deactivate 'forward-word)
-    (ad-deactivate 'backward-word)
-    (ad-deactivate 'left-char)))
+    (remove-hook 'post-command-hook 'showcss/keymove t)))
 
 (provide 'show-css)
 ;;; show-css.el ends here
