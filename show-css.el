@@ -276,7 +276,6 @@ id, or nil and the class name or id name"
 
 
 (defun showcss/main()
-  ""
   (let ((css-values (showcss/what-am-i)))
     ;; if is a selector:
     (if (or (string= (nth 0 css-values) "class")
@@ -288,8 +287,15 @@ id, or nil and the class name or id name"
 
 
 (defun showcss/keymove()
-  ""
-  (if showcss-mode
+  (if (memq this-command
+            '(next-line
+              previous-line
+              right-char
+              left-char
+              forward-word
+              backward-word
+              forward-sexp
+              backward-sexp))
       (showcss/main)))
 
 
@@ -299,13 +305,10 @@ id, or nil and the class name or id name"
   :init-value nil
   :lighter " Show"
 
-  (if showcss-mode
-      ()
-
+    (if showcss-mode
+        (add-hook 'post-command-hook 'showcss/keymove nil t)
     ;; else
-    ()
-    )
-  )
+    (remove-hook 'post-command-hook 'showcss/keymove t)))
 
 
 (provide 'show_css)
