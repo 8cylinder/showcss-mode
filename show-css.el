@@ -4,8 +4,8 @@
 ;;
 ;; Author: Sheldon McGrandle <developer@rednemesis.com>
 ;; Version: 1.0
-;; Created: 01 Feb 1013
-;; Keywords: languages, css
+;; Created: 1st February 2013
+;; Keywords: hypermedia
 ;;
 ;; This file is not part of GNU Emacs.
 ;;
@@ -303,6 +303,7 @@ id, or nil and the class name or id name"
       (showcss/main)))
 
 
+;;;###autoload
 (define-minor-mode showcss-mode
   "Display the css of the class or id the cursor is at"
 
@@ -317,4 +318,5 @@ id, or nil and the class name or id name"
 
 
 (provide 'show-css)
+
 ;;; show-css.el ends here
