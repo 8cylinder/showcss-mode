@@ -309,10 +309,12 @@ id, or nil and the class name or id name"
   :init-value nil
   :lighter " Show"
 
-    (if showcss-mode
-        (add-hook 'post-command-hook 'showcss/keymove nil t)
+  (if showcss-mode
+      (add-hook 'post-command-hook 'showcss/keymove nil t)
     ;; else
+    (showcss/remove-highlights)
     (remove-hook 'post-command-hook 'showcss/keymove t)))
+
 
 (provide 'show-css)
 ;;; show-css.el ends here
