@@ -4,6 +4,7 @@
 ;;
 ;; Author: Sheldon McGrandle <developer@rednemesis.com>
 ;; Version: 1.0
+;; Created: 01 Feb 1013
 ;; Keywords: languages, css
 ;;
 ;; This file is not part of GNU Emacs.
@@ -24,6 +25,7 @@
 ;; Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 
 ;;; Commentary:
+;;
 ;; DESCRIPTION AND USAGE
 ;;
 ;; Show CSS is a minor mode for emacs.
@@ -55,7 +57,7 @@
 ;;
 ;; Put this in your init.el or .emacs file:
 ;;
-;;   (autoload 'showcss-mode "show_css"
+;;   (autoload 'showcss-mode "show-css"
 ;;      "Display the css of the class or id the cursor is at" t)
 ;;
 ;; Personally, I find this mode to distracting to use all the time, so I
@@ -64,14 +66,15 @@
 ;;   (defun sm/toggle-showcss()
 ;;     "Toggle showcss-mode"
 ;;     (interactive)
-;;     (if (or (string= major-mode "html-mode")
-;;             (string= major-mode "nxml-mode")
-;;             (string= major-mode "handlebars-mode"))
+;;     (if (derived-mode-p
+;;          'html-mode
+;;          'nxml-mode
+;;          'nxhtml-mode
+;;          'web-mode
+;;          'handlebars-mode)
 ;;         (showcss-mode 'toggle)
 ;;       (message "Not in an html mode")))
 ;;   (global-set-key (kbd "C-c C-k") 'sm/toggle-showcss)
-;;
-;; BUGS
 ;;
 
 ;;; Code:
@@ -83,7 +86,6 @@
 
 (defface showcss/css-face
   '((t (:foreground "white" :background "darkgreen")))
-  ;'((t :background "green"))
   "Highlight the matched selector in the css file"
   :group 'showcss)
 
@@ -340,5 +342,5 @@ id, or nil and the class name or id name"
     (ad-deactivate 'backward-word)
     (ad-deactivate 'left-char)))
 
-(provide 'show_css)
+(provide 'show-css)
 ;;; show-css.el ends here
