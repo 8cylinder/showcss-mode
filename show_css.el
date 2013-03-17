@@ -300,43 +300,12 @@ id, or nil and the class name or id name"
   :lighter " Show"
 
   (if showcss-mode
-      (progn
-        (showcss/set-css-buffer)
-
-        (defadvice next-line (after showcss/advise-main)
-          "Advice around cursor movement"
-          (showcss/keymove))
-        (defadvice previous-line (after showcss/advise-main)
-          "Advice around cursor movement"
-          (showcss/keymove))
-        (defadvice right-char (after showcss/advise-main)
-          "Advice around cursor movement"
-          (showcss/keymove))
-        (defadvice left-char (after showcss/advise-main)
-          "Advice around cursor movement"
-          (showcss/keymove))
-        (defadvice forward-word (after showcss/advise-main)
-          "Advice around cursor movement"
-          (showcss/keymove))
-        (defadvice backward-word (after showcss/advise-main)
-          "Advice around cursor movement"
-          (showcss/keymove))
-
-        (ad-activate 'next-line)
-        (ad-activate 'previous-line)
-        (ad-activate 'right-char)
-        (ad-activate 'left-char)
-        (ad-activate 'forward-word)
-        (ad-activate 'backward-word))
+      ()
 
     ;; else
-    (showcss/remove-highlights)
-    (ad-deactivate 'next-line)
-    (ad-deactivate 'previous-line)
-    (ad-deactivate 'right-char)
-    (ad-deactivate 'forward-word)
-    (ad-deactivate 'backward-word)
-    (ad-deactivate 'left-char)))
+    ()
+    )
+  )
 
 
 (provide 'show_css)

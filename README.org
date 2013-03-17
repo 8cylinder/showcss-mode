@@ -1,6 +1,7 @@
 
 * Show CSS
 
+Unstable branch: *remove-defadvice*
 
 ** Overview
 
@@ -8,8 +9,6 @@ Show CSS is a minor mode for emacs.
 
 With showcss-mode turned on, as you navigate around an HTML file the
 matching css for that element will be displayed in another buffer.
-
-[[http://i.imgur.com/VCqEwAp.gif]]
 
 In the current html buffer, if you move the cursor over a class=".*?"
 or id=".*?" a buffer will open with the external css file loaded and
@@ -19,12 +18,12 @@ Show Css will look at the <link> tags and a custom comment tag to get
 the location of external css files.
 
 Show Css looks for a comment with this regex:
-: <!-- showcss: \\(.*?\\) -->
+ : <!-- showcss: \\(.*?\\) -->
 
 For example:
-: <!-- showcss: /home/user/projects/facebook/site/css/main.css -->
+ : <!-- showcss: /home/user/projects/facebook/site/css/main.css -->
 or
-: <!-- showcss: ./sass_files/main.sass-->
+ : <!-- showcss: ./sass_files/main.sass-->
 
 The comment is useful if you want to use sass files directly instead
 of compiling them.  Also showcss-mode will only use local files.  So
@@ -46,23 +45,23 @@ Personally, I find this mode to distracting to use all the time, so I
 use this function to quickly toggle the mode on and off.
 
 #+BEGIN_SRC emacs-lisp
-  (defun sm/toggle-showcss()
-    "Toggle showcss-mode"
-    (interactive)
-    (if (member major-mode
-         '("html-mode"
-           "nxml-mode"
-           "nxhtml-mode"
-           "web-mode"
-           "handlebars-mode"))
-        (showcss-mode 'toggle)
-      (message "Not in an html mode")))
-  (global-set-key (kbd "C-c C-k") 'sm/toggle-showcss)
+(defun sm/toggle-showcss()
+  "Toggle showcss-mode"
+  (interactive)
+  (if (derived-mode-p
+       'html-mode
+       'nxml-mode
+       'nxhtml-mode
+       'web-mode
+       'handlebars-mode)
+      (showcss-mode 'toggle)
+    (message "Not in an html mode")))
+(global-set-key (kbd "C-c C-k") 'sm/toggle-showcss)
 #+END_SRC
 
 ** Customize options
 
-: <alt x>customize-group<ret>showcss
+ : <alt x>customize-group<ret>showcss
 
 Customize three faces; html match found, html no match found, and css
 element.  Also you can set the mode so that it only gets the css
