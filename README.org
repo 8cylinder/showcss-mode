@@ -1,7 +1,6 @@
 
 * Show CSS
 
-Unstable branch: *remove-defadvice*
 
 ** Overview
 
@@ -9,6 +8,8 @@ Show CSS is a minor mode for emacs.
 
 With showcss-mode turned on, as you navigate around an HTML file the
 matching css for that element will be displayed in another buffer.
+
+[[http://i.imgur.com/VCqEwAp.gif]]
 
 In the current html buffer, if you move the cursor over a class=".*?"
 or id=".*?" a buffer will open with the external css file loaded and
