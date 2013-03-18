@@ -3,7 +3,7 @@
 ;; Copyright (C) 2012 Sheldon McGrandle
 ;;
 ;; Author: Sheldon McGrandle <developer@rednemesis.com>
-;; Version: 1.0
+;; Version: 1.01
 ;; Created: 1st February 2013
 ;; Keywords: hypermedia
 ;;
@@ -213,7 +213,7 @@ id, or nil and the class name or id name"
 
     (cond ((string= selector-type "class")
            (setq full-selector
-                 (concat "." selector-name)))
+                 (concat "\\." selector-name)))
           ((string= selector-type "id")
            (setq full-selector
                  (concat "#" selector-name)))
@@ -311,7 +311,9 @@ id, or nil and the class name or id name"
   :lighter " Show"
 
   (if showcss-mode
-      (add-hook 'post-command-hook 'showcss/keymove nil t)
+      (progn
+        (showcss/set-css-buffer)
+        (add-hook 'post-command-hook 'showcss/keymove nil t))
     ;; else
     (showcss/remove-highlights)
     (remove-hook 'post-command-hook 'showcss/keymove t)))
