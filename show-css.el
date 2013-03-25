@@ -6,6 +6,7 @@
 ;; Version: 1.01
 ;; Created: 1st February 2013
 ;; Keywords: hypermedia
+;; URL: https://github.com/smmcg/showcss-mode
 ;;
 ;; This file is not part of GNU Emacs.
 ;;
@@ -75,6 +76,15 @@
 ;;         (showcss-mode 'toggle)
 ;;       (message "Not in an html mode")))
 ;;   (global-set-key (kbd "C-c C-k") 'sm/toggle-showcss)
+;;
+;; BUGS
+;;
+;; There are many.
+;; Please report any found to the github repository
+;; https://github.com/smmcg/showcss-mode
+;;
+;; Also, it you have ideas, suggestions, advice, use the
+;; github issues tool also.
 ;;
 
 ;;; Code:
