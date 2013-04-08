@@ -79,12 +79,13 @@
 ;;
 ;; BUGS
 ;;
-;; There are many.
+;; Indubitably.
 ;; Please report any found to the github repository
 ;; https://github.com/smmcg/showcss-mode
 ;;
-;; Also, it you have ideas, suggestions, advice, use the
-;; github issues tool also.
+;; Also, it you have ideas, suggestions, or advice; please
+;; let me know.  Use the github issues tool or send me
+;; an email.
 ;;
 
 ;;; Code:
@@ -121,7 +122,7 @@ to view"
 (defvar showcss/last-css-overlay (make-overlay 0 0)
   "this is the last overlay set in the css file")
 (make-variable-buffer-local 'showcss/last-css-overlay)
-
+;; should be make-local-variable
 (defvar showcss/last-html-overlay (make-overlay 0 0)
   "this is the last overlay set in the html file")
 (make-variable-buffer-local 'showcss/last-html-overlay)
@@ -190,7 +191,8 @@ Eg:
 
 (defun showcss/what-am-i()
   "What is the cursor on?  Should return class,
-id, or nil and the class name or id name"
+id, or nil and the class name or id name and
+the start and end of the element"
   (let ((saved-point (point)))
     (save-excursion
     (re-search-backward "[ \t\n]" nil t)
@@ -215,8 +217,10 @@ id, or nil and the class name or id name"
       (list nil nil)))))
 
 
-(defun showcss/scroll-to-selector (css-values)
-  "Scroll the css file to show the selector"
+(defun showcss/build-css-search-string (css-values)
+  "Convert \"class\" to \".class\" or \"id\" to \"#id\"
+and create a regex to be used for searching in the css files.
+eg: \"\\\\(\\\\.some_class\\\\)[ ,\\n{]\""
   (let ((selector-type (nth 0 css-values))
         (selector-name (nth 1 css-values))
         (full-selector nil))
@@ -315,7 +319,9 @@ id, or nil and the class name or id name"
 
 ;;;###autoload
 (define-minor-mode showcss-mode
-  "Display the css of the class or id the cursor is at"
+  "Display the css of the class or id the cursor is at.
+Visit https://github.com/smmcg/showcss-mode to view the
+git repository"
 
   :init-value nil
   :lighter " Show"
