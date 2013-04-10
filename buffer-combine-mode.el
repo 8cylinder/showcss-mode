@@ -21,16 +21,25 @@
   "data format:
 '((filename overlay1 overlay2 overlay3)
   (anotherfile overlay1 overlay2))")
+;(make-local-variable bc/buffers-data)
 
+(defvar bc/this-buffer nil)
+;(make-local-variable bc/this-buffer)
 
 (defun* bc/start (data &key (readonly nil) (hidden nil))
   "Recieve and parse the data
 two optional flags readonly and hidden"
-  ;;for each file and its fragment positions:
-  (dolist (filelist data)
-    (let ((buffer (bc/load-file (car filelist) hidden)))
-      ;;for each fragment position:
-      (bc/mark-fragments-in-source buffer (cdr filelist)))))
+  (let ((buffers-data '()))
+    ;;for each file and its fragment positions:
+    (dolist (filelist data)
+      (let ((buffer (bc/load-file (car filelist) hidden)))
+        ;;for each fragment position:
+        (setq buffers-data
+              (cons (bc/mark-fragments-in-source buffer (cdr filelist))
+                    buffers-data))))
+
+    (bc/build-display buffers-data)
+))
 
 
 (defun bc/load-file (file hidden)
@@ -57,16 +66,21 @@ space in front of the buffer title"
 
 
 (defun bc/mark-fragments-in-source(buffer fragments)
-  ""
+  "Iterate over all the fragments in one buffer"
   (set-buffer buffer)
   ;(switch-to-buffer buffer)
   (remove-overlays)
-  (dolist (fragment fragments)
-    (bc/mark-fragment-in-source
-     buffer
-     (nth 0 fragment)    ;start
-     (nth 1 fragment)    ;end
-     "fragment name?")))
+  (let ((buffer-overlay-list (cons buffer '())))
+    (dolist (fragment fragments)
+      (setq buffer-overlay-list
+            (cons
+             (bc/mark-fragment-in-source
+              buffer
+              (nth 0 fragment)    ;start
+              (nth 1 fragment)    ;end
+              "fragment name?")
+             buffer-overlay-list)))
+    (reverse buffer-overlay-list)))
 
 
 (defun bc/mark-fragment-in-source (buffer start end name)
@@ -81,9 +95,27 @@ space in front of the buffer title"
     ov))
 
 
-(defun bc/build-display()
-"Build the display for each fragment"
-)
+(defun bc/build-display(buffers-data)
+  "Build the display for each fragment"
+  (set-buffer bc/this-buffer)
+
+  (dolist (file-and-overlays buffers-data)
+    (insert "\n==========================\n")
+    (let ((buf (car file-and-overlays)))
+      (insert (buffer-file-name buf))
+      (insert "\n-----------------------\n")
+      (dolist (ov (cdr file-and-overlays))
+        (let* ((source-start (overlay-start ov))
+               (source-end (overlay-end ov))
+               (display-length (- source-end source-start)))
+          (insert-buffer-substring-no-properties
+           buf
+           (overlay-start ov)
+           (overlay-end ov))
+          (let ((ov-display (make-overlay (point) (- (point) display-length))))
+            (overlay-put ov-display 'face 'buffer-combine/region-face))
+          (insert "\n\n")
+)))))
 
 
 
@@ -96,10 +128,11 @@ space in front of the buffer title"
   "some documentation")
 
 ;; derive from css-mode, sass-mode?
-(define-derived-mode buffer-combine-mode prog-mode "Combine"
+(define-derived-mode buffer-combine-mode css-mode "Combine"
   "Display fragments from other buffers"
   :group 'buffer-combine
 
+  (setq bc/this-buffer (current-buffer))
 )
 
 

@@ -90,6 +90,8 @@
 
 ;;; Code:
 
+(require 'buffer-combine)
+
 (defgroup showcss nil
   "Customize showcss"
   :prefix "showcss/"
