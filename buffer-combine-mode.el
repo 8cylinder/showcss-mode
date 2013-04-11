@@ -98,24 +98,40 @@ space in front of the buffer title"
 (defun bc/build-display(buffers-data)
   "Build the display for each fragment"
   (set-buffer bc/this-buffer)
-
   (dolist (file-and-overlays buffers-data)
-    (insert "\n==========================\n")
     (let ((buf (car file-and-overlays)))
-      (insert (buffer-file-name buf))
-      (insert "\n-----------------------\n")
-      (dolist (ov (cdr file-and-overlays))
-        (let* ((source-start (overlay-start ov))
-               (source-end (overlay-end ov))
+      (insert (format "\n/* %s */\n\n" (buffer-file-name buf)))
+      (dolist (source-ov (cdr file-and-overlays))
+        (let* ((source-start (overlay-start source-ov))
+               (source-end (overlay-end source-ov))
                (display-length (- source-end source-start)))
           (insert-buffer-substring-no-properties
            buf
-           (overlay-start ov)
-           (overlay-end ov))
-          (let ((ov-display (make-overlay (point) (- (point) display-length))))
-            (overlay-put ov-display 'face 'buffer-combine/region-face))
-          (insert "\n\n")
+           (overlay-start source-ov)
+           (overlay-end source-ov))
+          (let ((display-ov (make-overlay (point) (- (point) display-length) nil nil nil)))
+            (overlay-put display-ov 'before-string "\n")
+            (overlay-put display-ov 'modification-hooks '(send-back-to-source))
+            (overlay-put display-ov 'source-overlay source-ov)
+            (overlay-put display-ov 'face 'buffer-combine/region-face))
+          (insert "\n")
 )))))
+
+
+(defun send-back-to-source(ov &optional flag &rest rv)
+  ""
+  ;(message (format "%s %s %s -- %s" ov flag rv  (point)))
+  (message (format "%s %s" ov (overlay-get ov 'source-overlay)))
+  (let* ((source-ov (overlay-get ov 'source-overlay))
+         (source-start (overlay-start source-ov))
+         (source-end (overlay-end source-ov))
+         (display-start (overlay-start ov))
+         (display-end (overlay-end ov))
+         (content (buffer-substring-no-properties display-start display-end)))
+    (set-buffer (overlay-buffer source-ov))
+    (delete-region source-start source-end)
+    (insert content))
+)
 
 
 
