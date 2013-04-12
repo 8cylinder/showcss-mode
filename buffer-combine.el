@@ -1,4 +1,38 @@
-;;; buffer-combine-mode.el
+;;; buffer-combine.el
+;;; show-css.el --- Show the css of the html attribute the cursor is on
+;;
+;; Copyright (C) 2012 Sheldon McGrandle
+;;
+;; Author: Sheldon McGrandle <developer@rednemesis.com>
+;; Version: 0.1
+;; Created: 12th April 2013
+;; Keywords: utility
+;; URL: https://github.com/smmcg/showcss-mode
+;;
+;; This file is not part of GNU Emacs.
+;;
+;; This program is free software; you can redistribute it and/or modify
+;; it under the terms of the GNU General Public License as published by
+;; the Free Software Foundation; either version 2, or (at your option)
+;; any later version.
+;;
+;; This program is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;; GNU General Public License for more details.
+;;
+;; You should have received a copy of the GNU General Public License
+;; along with GNU Emacs; see the file COPYING.  If not, write to the
+;; author of this program <mboyer@ireq-robot.hydro.qc.ca> or to the
+;; Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+
+;;; Commentary:
+;;
+;; DESCRIPTION AND USAGE
+;;
+;; INSTAlLATION
+;;
+;; BUGS
 
 
 ;;; Code:
@@ -26,6 +60,7 @@
 (defvar bc/this-buffer nil)
 ;(make-local-variable bc/this-buffer)
 
+
 (defun* bc/start (data &key (readonly nil) (hidden nil))
   "Recieve and parse the data
 two optional flags readonly and hidden"
@@ -37,14 +72,13 @@ two optional flags readonly and hidden"
         (setq buffers-data
               (cons (bc/mark-fragments-in-source buffer (cdr filelist))
                     buffers-data))))
-
-    (bc/build-display buffers-data)
-))
+    (setq bc/buffers-data buffers-data)
+    (bc/build-display buffers-data)))
 
 
 (defun bc/load-file (file hidden)
-  "Load the files from disk and if hidden is t, rename them with a
-space in front of the buffer title"
+  "Load the files from disk and if hidden is t,
+rename them with a space in front of the buffer title"
   (let ((buffer file))
     ;; if buffer is not a buffer then it is probably
     ;; a string (file location).  Then convert it to
@@ -76,22 +110,19 @@ space in front of the buffer title"
             (cons
              (bc/mark-fragment-in-source
               buffer
-              (nth 0 fragment)    ;start
-              (nth 1 fragment)    ;end
-              "fragment name?")
+              (nth 0 fragment)   ;start
+              (nth 1 fragment))  ;end
              buffer-overlay-list)))
     (reverse buffer-overlay-list)))
 
 
-(defun bc/mark-fragment-in-source (buffer start end name)
+(defun bc/mark-fragment-in-source (buffer start end)
   "Mark a fragments in a buffer with an overlay"
   (let ((ov (make-overlay start end)))
     (overlay-put ov 'face 'buffer-combine/region-face)
     (overlay-put ov 'before-string
                  "\nChanges made here will be overwritten:\n")
-    (overlay-put ov 'name name)
-
-    ;; return <ov>
+    ;; return <ov>:
     ov))
 
 
@@ -100,7 +131,8 @@ space in front of the buffer title"
   (set-buffer bc/this-buffer)
   (dolist (file-and-overlays buffers-data)
     (let ((buf (car file-and-overlays)))
-      (insert (format "\n/* %s */\n\n" (buffer-file-name buf)))
+      (insert (format "\n\n/* %s */\n" (file-name-nondirectory
+                                        (buffer-file-name buf))))
       (dolist (source-ov (cdr file-and-overlays))
         (let* ((source-start (overlay-start source-ov))
                (source-end (overlay-end source-ov))
@@ -109,46 +141,71 @@ space in front of the buffer title"
            buf
            (overlay-start source-ov)
            (overlay-end source-ov))
-          (let ((display-ov (make-overlay (point) (- (point) display-length) nil nil nil)))
+          (let ((display-ov (make-overlay
+                             (point) (- (point) display-length) nil nil nil)))
             (overlay-put display-ov 'before-string "\n")
-            (overlay-put display-ov 'modification-hooks '(send-back-to-source))
+            (overlay-put display-ov 'modification-hooks
+                         '(bc/send-back-to-source))
             (overlay-put display-ov 'source-overlay source-ov)
             (overlay-put display-ov 'face 'buffer-combine/region-face))
           (insert "\n")
 )))))
 
 
-(defun send-back-to-source(ov &optional flag &rest rv)
-  ""
-  ;(message (format "%s %s %s -- %s" ov flag rv  (point)))
-  (message (format "%s %s" ov (overlay-get ov 'source-overlay)))
-  (let* ((source-ov (overlay-get ov 'source-overlay))
+(defun bc/send-back-to-source(ov &optional flag &rest rv)
+  "Any edits made in the display buffer are sent back to the
+matching overlay in the source buffer"
+  (if flag
+      (progn (let*
+        ((source-ov (overlay-get ov 'source-overlay))
          (source-start (overlay-start source-ov))
          (source-end (overlay-end source-ov))
          (display-start (overlay-start ov))
          (display-end (overlay-end ov))
-         (content (buffer-substring-no-properties display-start display-end)))
-    (set-buffer (overlay-buffer source-ov))
-    (delete-region source-start source-end)
-    (insert content))
-)
+         (content (buffer-substring-no-properties
+                   display-start display-end)))
+        (set-buffer (overlay-buffer source-ov))
+        (goto-char source-start)
+        (insert content)
+        (delete-region (point) (overlay-end source-ov))))))
 
 
+(defun bc/save-source-buffers()
+  (interactive)
+  "Save all the source buffers"
+  (message "saving source buffers")
+  (dolist (buffer-and-fragments bc/buffers-data)
+    (let ((buffer (car buffer-and-fragments)))
+      (set-buffer buffer)
+      (save-buffer)
+  )))
 
+
+(defun bc/remove-source-overlays()
+  "Remove all the overlays from the source buffers"
+  (dolist (buffer-and-fragments bc/buffers-data)
+    (let ((buffer (car buffer-and-fragments)))
+      (set-buffer buffer)
+      (dolist (ov (cdr buffer-and-fragments))
+        (delete-overlay ov))
+  )))
 
 
 (defvar buffer-combine-mode-map
   (let ((map (make-sparse-keymap)))
-    (define-key map "" 'bc/save-all-buffers)
+    (define-key map (read-kbd-macro "C-x C-s") 'bc/save-source-buffers)
     map)
   "some documentation")
 
+
 ;; derive from css-mode, sass-mode?
 (define-derived-mode buffer-combine-mode css-mode "Combine"
-  "Display fragments from other buffers"
+  "Display fragments from other buffers
+\\{buffer-combine-mode-map}"
   :group 'buffer-combine
 
   (setq bc/this-buffer (current-buffer))
+  (add-hook 'kill-buffer-hook 'bc/remove-source-overlays nil t)
 )
 
 

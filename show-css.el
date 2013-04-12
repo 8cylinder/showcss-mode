@@ -91,6 +91,7 @@
 ;;; Code:
 
 (require 'buffer-combine)
+(require 'dom)
 
 (defgroup showcss nil
   "Customize showcss"
@@ -164,12 +165,14 @@ Eg:
             (let ((tag-start (match-beginning 0))
                   (tag-end (match-end 0)))
               (goto-char tag-start)
-              (if (re-search-forward "\\(type=\"text/css\"\\|rel=\"stylesheet\"\\)" tag-end t)
+              (if (re-search-forward
+                   "\\(type=\"text/css\"\\|rel=\"stylesheet\"\\)" tag-end t)
                   (progn
                     (goto-char tag-start)
                     (if (re-search-forward "href=\"\\([^:]*?\\)\"" tag-end t)
                         (let ((css-file
-                               (file-truename (substring-no-properties (match-string 1)))))
+                               (file-truename (substring-no-properties
+                                               (match-string 1)))))
                           (if (file-exists-p css-file)
                               (setq csslist (cons css-file csslist)))))))
               (goto-char tag-end)))))
@@ -180,7 +183,8 @@ Eg:
       (while (re-search-forward "<!-- showcss: \\(.*?\\) -->" nil t)
         (if (file-exists-p (match-string 1))
             (setq csslist
-                  (cons (substring-no-properties (match-string 1)) csslist)))))
+                  (cons (substring-no-properties
+                         (match-string 1)) csslist)))))
 
     ;; load the css files into buffers
     (mapc (lambda (css-file)
@@ -252,7 +256,8 @@ eg: \"\\\\(\\\\.some_class\\\\)[ ,\\n{]\""
             (goto-char (point-min))
             (if (re-search-forward full-re-selector nil t)
                 (progn
-                  (showcss/highlight-css-selector (match-beginning 1) (match-end 1))
+                  (showcss/highlight-css-selector (match-beginning 1)
+                                                  (match-end 1))
                   (switch-to-buffer-other-window css-buffer)
                   (goto-char (match-beginning 1))
                   (switch-to-buffer-other-window html-buffer)
