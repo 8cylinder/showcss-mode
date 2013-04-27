@@ -30,7 +30,17 @@
 ;;
 ;; DESCRIPTION AND USAGE
 ;;
-;; INSTAlLATION
+;; (let ((buf (generate-new-buffer "Some name for display")))
+;;   (set-buffer buf)         ;create a new buffer and set focus to it
+;;   (buffer-combine-mode)    ;turn on buffer combine mode
+;;   (bc/start data :readonly nil :hidden nil))  ;send it the data
+;;
+;; Data structure bc/start requires:
+;; '((filename-or-buffer (start end) (start end) ...)
+;;   (another-file (start end) ...)
+;;   (...))
+;;
+;; INSTALLATION
 ;;
 ;; BUGS
 
@@ -42,13 +52,14 @@
 
 
 (defgroup buffer-combine nil
-  "Customize buffer-combine"
-  :prefix "buffer-combine"
-  :group 'Text)
+ "Customize buffer-combine"
+ :prefix "buffer-combine"
+ :group 'Text)
 
 (defface buffer-combine/region-face
-  '((t (:background "grey50")))
-  :group 'buffer-combine)
+ '((t (:background "grey50")))
+ "Highlight the full selector"
+ :group 'buffer-combine)
 
 
 (defvar bc/buffers-data nil
@@ -64,6 +75,7 @@
 (defun* bc/start (data &key (readonly nil) (hidden nil))
   "Recieve and parse the data
 two optional flags readonly and hidden"
+  (bc/remove-source-overlays)
   (let ((buffers-data '()))
     ;;for each file and its fragment positions:
     (dolist (filelist data)
@@ -79,15 +91,22 @@ two optional flags readonly and hidden"
 (defun bc/load-file (file hidden)
   "Load the files from disk and if hidden is t,
 rename them with a space in front of the buffer title"
-  (let ((buffer file))
-    ;; if buffer is not a buffer then it is probably
-    ;; a string (file location).  Then convert it to
-    ;; a buffer.
-    (unless (bufferp buffer)
-      (setq buffer (find-file-noselect file)))
-    (set-buffer buffer)
-    ;; if file is to be hidden, add a space to the
-    ;; begining of the buffer name
+  (let ((return-buffer nil))
+    ;; if file is actually a buffer, do nothing
+    (if (bufferp file)
+        ;; return: <file>
+        (setq return-buffer file)
+      ;; since file is a string, see if its
+      ;; already loaded in a buffer
+      (dolist (b (buffer-list))
+        (if (string= (buffer-file-name b) (file-truename file))
+            (setq return-buffer b))))
+    ;; since file is not a buffer and its not
+    ;; already loaded, load it now
+    (if (not return-buffer)
+        (setq return-buffer (find-file-noselect file)))
+
+    (set-buffer return-buffer)
     (if hidden
         (rename-buffer (concat " " (s-trim-left (buffer-name))))
       ;; if file is *not* to be hidden but it is already,
@@ -95,8 +114,8 @@ rename them with a space in front of the buffer title"
       (if (s-starts-with? " " (buffer-name))
           (rename-buffer (s-trim-left (buffer-name)))))
 
-    ;; return: <buffer handle>
-    buffer))
+    ;;return: <buffer handle>
+    return-buffer))
 
 
 (defun bc/mark-fragments-in-source(buffer fragments)
@@ -121,7 +140,10 @@ rename them with a space in front of the buffer title"
   (let ((ov (make-overlay start end)))
     (overlay-put ov 'face 'buffer-combine/region-face)
     (overlay-put ov 'before-string
-                 "\nChanges made here will be overwritten:\n")
+                 "\nChanges made here will be overwritten by
+edits made in the Show CSS buffer:\n")
+    (overlay-put ov 'after-string
+                 "-----------------------------------------\n")
     ;; return <ov>:
     ov))
 
@@ -129,6 +151,10 @@ rename them with a space in front of the buffer title"
 (defun bc/build-display(buffers-data)
   "Build the display for each fragment"
   (set-buffer bc/this-buffer)
+  (remove-overlays)
+  ;(remove-hook 'kill-buffer-hook 'bc/remove-source-overlays t)
+  ;(add-hook 'kill-buffer-hook 'bc/remove-source-overlays nil t)
+  (erase-buffer)
   (dolist (file-and-overlays buffers-data)
     (let ((buf (car file-and-overlays)))
       (insert (format "\n\n/* %s */\n" (file-name-nondirectory
@@ -148,13 +174,13 @@ rename them with a space in front of the buffer title"
                          '(bc/send-back-to-source))
             (overlay-put display-ov 'source-overlay source-ov)
             (overlay-put display-ov 'face 'buffer-combine/region-face))
-          (insert "\n")
-)))))
+          (insert "\n")))))
+  (goto-char (point-min)))
 
 
 (defun bc/send-back-to-source(ov &optional flag &rest rv)
   "Any edits made in the display buffer are sent back to the
-matching overlay in the source buffer"
+linked overlay in the source buffer"
   (if flag
       (progn (let*
         ((source-ov (overlay-get ov 'source-overlay))
@@ -202,11 +228,16 @@ matching overlay in the source buffer"
 (define-derived-mode buffer-combine-mode css-mode "Combine"
   "Display fragments from other buffers
 \\{buffer-combine-mode-map}"
-  :group 'buffer-combine
 
   (setq bc/this-buffer (current-buffer))
-  (add-hook 'kill-buffer-hook 'bc/remove-source-overlays nil t)
-)
+  (add-hook 'kill-buffer-hook 'bc/remove-source-overlays nil t))
+
+;  (if buffer-combine-mode
+;      (progn
+;        (setq bc/this-buffer (current-buffer))
+;        (add-hook 'kill-buffer-hook 'bc/remove-source-overlays nil t))
+;    (bc/remove-source-overlays))
+;)
 
 
 (provide 'buffer-combine)

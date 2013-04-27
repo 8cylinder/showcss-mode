@@ -113,8 +113,13 @@
   "Highlight the selector the cursor is in"
   :group 'showcss)
 
-(defcustom showcss/use-html-tags
-  t
+(defcustom showcss/update-delay 4
+  "Number of seconds of idle time from last keypress
+before updating selectors display"
+  :group 'showcss
+  :type 'number)
+
+(defcustom showcss/use-html-tags t
   "Use the <link ...> tag in addition to the <!-- --> comments.
 Turn off if you want to only comments to explicitly set the css
 to view"
@@ -137,6 +142,17 @@ to view"
 (defvar showcss/html-buffer nil
   "The buffer that contains the html file")
 (make-variable-buffer-local 'showcss/html-buffer)
+
+(defvar showcss/parents nil
+  "The list of parents for the current tag")
+(make-variable-buffer-local 'showcss/parents)
+
+(defvar showcss/timer nil)
+(make-variable-buffer-local 'showcss/timer)
+
+(defvar showcss/display-buffer nil
+  "The buffer to display the matches in")
+(make-variable-buffer-local 'showcss/display-buffer)
 
 
 (defun showcss/set-css-buffer()
@@ -223,8 +239,8 @@ the start and end of the element"
       (list nil nil)))))
 
 
-(defun showcss/build-css-search-string (css-values)
-  "Convert \"class\" to \".class\" or \"id\" to \"#id\"
+(defun showcss/build-selector (css-values)
+  "Convert a class to \".class\" or an id to \"#id\"
 and create a regex to be used for searching in the css files.
 eg: \"\\\\(\\\\.some_class\\\\)[ ,\\n{]\""
   (let ((selector-type (nth 0 css-values))
@@ -240,47 +256,40 @@ eg: \"\\\\(\\\\.some_class\\\\)[ ,\\n{]\""
           (t
            (error (format "Wrong type of selector: %s" selector-type)))
           )
-    (let ((full-re-selector (format "\\(%s\\)[ ,\n{]" full-selector))
-          (html-buffer (current-buffer))
-          (attribute-start (nth 2 css-values))
-          (attribute-end (nth 3 css-values))
-          (found nil))
-      (catch 'break
-        (dolist (css-buffer showcss/css-buffer)
+
+    ;; full definition
+    (format ".*?%s.*?[\0-\377[:nonascii:]]*?}[^*]" full-selector)
+    ;; selector only
+    ;(format "\\(%s\\)[ ,\n{]" full-selector)
+))
+
+(defun showcss/find-selectors (css-values)
+  ""
+  (let ((full-re-selector (showcss/build-selector css-values))
+        (html-buffer (current-buffer))
+        (data ()))
+    ;; each buffer
+    (dolist (css-buffer showcss/css-buffer)
+      (let ((buffer-and-fragments ()))
+        (save-excursion
           (set-buffer css-buffer)
-          (delete-overlay showcss/last-css-overlay)
-          ;; save current point so that if search doesn't find
-          ;; anything, we can return to last point so that the buffer
-          ;; doesn't scroll to the top
-          (let ((saved-point (point)))
-            (goto-char (point-min))
-            (if (re-search-forward full-re-selector nil t)
-                (progn
-                  (showcss/highlight-css-selector (match-beginning 1)
-                                                  (match-end 1))
-                  (switch-to-buffer-other-window css-buffer)
-                  (goto-char (match-beginning 1))
-                  (switch-to-buffer-other-window html-buffer)
-                  (setq found t)
-                  (message "")
-                  (throw 'break t))
-              (goto-char saved-point)
-              (message "Not found: %s" full-selector)))))
-      (set-buffer html-buffer)
-      (if found
-          (showcss/highlight-html-selector
-           attribute-start attribute-end 'showcss/html-matched-face)
-        (showcss/highlight-html-selector
-         attribute-start attribute-end 'showcss/html-unmatched-face))
-      )))
+          (goto-char (point-min))
+          ;; each fragment
+          (while (re-search-forward full-re-selector nil t)
+            (setq buffer-and-fragments
+                  (cons
+                   (list (match-beginning 0) (match-end 0)) buffer-and-fragments)))
+          (if (< 0 (length buffer-and-fragments))
+              (progn
+                (setq buffer-and-fragments (cons css-buffer buffer-and-fragments))
+                (setq data (cons buffer-and-fragments data)))))))
 
-
-(defun showcss/highlight-css-selector (start end)
-  "Highlight the matched selector"
-  (delete-overlay showcss/last-css-overlay)
-  (let ((ov (make-overlay start end)))
-    (overlay-put ov 'face 'showcss/css-face)
-    (setq showcss/last-css-overlay ov)))
+    (let ((display-buffer (get-buffer-create "Show CSS")))
+      (set-buffer display-buffer)
+      (switch-to-buffer-other-window display-buffer)
+      (buffer-combine-mode)             ;should this be call each time?
+      (bc/start data)
+      (switch-to-buffer-other-window html-buffer))))
 
 
 (defun showcss/highlight-html-selector (start end html-face)
@@ -299,16 +308,16 @@ eg: \"\\\\(\\\\.some_class\\\\)[ ,\\n{]\""
     (delete-overlay showcss/last-css-overlay)))
 
 
-
 (defun showcss/main()
   (let ((css-values (showcss/what-am-i)))
     ;; if is a selector:
     (if (or (string= (nth 0 css-values) "class")
             (string= (nth 0 css-values) "id"))
         (progn
-          (showcss/scroll-to-selector css-values))
+          (showcss/find-selectors css-values))
       ;; remove overlays
-      (showcss/remove-highlights))))
+      (showcss/remove-highlights)
+      (bc/start nil))))
 
 
 (defun showcss/keymove()
@@ -332,14 +341,28 @@ git repository"
 
   :init-value nil
   :lighter " Show"
+  :keymap '(([C-c C-u] . showcss/parse-html))
 
   (if showcss-mode
       (progn
+        ;(let ((current (current-buffer)))
+          ;(set-buffer showcss/display-buffer)
+          ;(buffer-combine-mode)
+          ;(set-buffer current))
+
         (showcss/set-css-buffer)
-        (add-hook 'post-command-hook 'showcss/keymove nil t))
+        ;; (setq showcss/timer
+        ;;       (run-with-idle-timer
+        ;;        showcss/update-delay t 'showcss/parse-html))
+        (add-hook 'post-command-hook 'showcss/keymove nil t)
+        ;(add-hook 'after-save-hook 'showcss/parse-html nil t)
+        )
+
     ;; else
-    (showcss/remove-highlights)
-    (remove-hook 'post-command-hook 'showcss/keymove t)))
+    ;(showcss/remove-highlights)
+    ;(cancel-timer showcss/timer)
+    (remove-hook 'post-command-hook 'showcss/keymove t)
+    ))
 
 
 (provide 'show-css)
