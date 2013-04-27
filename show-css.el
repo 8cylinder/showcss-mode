@@ -239,6 +239,11 @@ the start and end of the element"
       (list nil nil)))))
 
 
+(defun showcss/what-elements()
+  "Get a list of elements in the current tag"
+)
+
+
 (defun showcss/build-selector (css-values)
   "Convert a class to \".class\" or an id to \"#id\"
 and create a regex to be used for searching in the css files.
