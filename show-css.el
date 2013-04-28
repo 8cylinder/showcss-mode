@@ -22,8 +22,8 @@
 ;;
 ;; You should have received a copy of the GNU General Public License
 ;; along with GNU Emacs; see the file COPYING.  If not, write to the
-;; author of this program <mboyer@ireq-robot.hydro.qc.ca> or to the
-;; Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+;; author of this program or to the Free Software Foundation, 675 Mass
+;; Ave, Cambridge, MA 02139, USA.
 
 ;;; Commentary:
 ;;
@@ -79,8 +79,7 @@
 ;;
 ;; BUGS
 ;;
-;; Indubitably.
-;; Please report any found to the github repository
+;; Please report any bugs found to the github repository
 ;; https://github.com/smmcg/showcss-mode
 ;;
 ;; Also, it you have ideas, suggestions, or advice; please
@@ -211,118 +210,140 @@ Eg:
           csslist)))
 
 
-(defun showcss/what-am-i()
-  "What is the cursor on?  Should return class,
-id, or nil and the class name or id name and
-the start and end of the element"
-  (let ((saved-point (point)))
-    (save-excursion
-    (re-search-backward "[ \t\n]" nil t)
-    (if (re-search-forward " \\(\\(id\\|class\\)=\"\\(.*?\\)\"\\)" nil t 1)
-        (progn
-          (goto-char saved-point)
-          ;; is the saved-point between (match-beginning 0) and (match-end 0)?
-          (if (and (> saved-point (match-beginning 1))
-                   (< saved-point (match-end 1)))
-              (progn
-                ;; RETURN: (selector type, selector name)
-                (list
-                 (substring-no-properties (match-string 2))
-                 (substring-no-properties (match-string 3))
-                 ;; pass on the position so the attribute can
-                 ;; be set with the right face later:
-                 (match-beginning 3)
-                 (match-end 3)))
-
-            ;; RETURN: (nil, nil)
-            (list nil nil)))
-      (list nil nil)))))
-
-
 (defun showcss/what-elements()
-  "Get a list of elements in the current tag"
-)
+  "Get a list of elements from the current tag.
+It returns the tag name, id and class lists.
+For example:
+\(\"div\" (\"id\" . \"someid\") (class \"dog\" \"cat\"))"
+  (setq showcss/html-buffer (current-buffer))
+  (save-excursion
+    (re-search-backward "\\(>\\|</\\|<!\\|<\\)" nil t)
+    (cond
+     ;; > end of tag - not in a tag
+     ((string= ">" (match-string 0))
+      nil)
+     ;; </ in a closing tag
+     ((string= "</" (match-string 0))
+      nil)
+     ;; <! in a comment
+     ((string= "<!" (match-string 0))
+      nil)
+     ;; < in an opening tag
+     ((string= "<" (match-string 0))
+      (let ((tag-start (match-end 1))
+            (tag-end (search-forward ">"))
+            (tag-name nil)
+            (tag-id nil)
+            (tag-class nil))
+        ;; tag name
+        (goto-char tag-start)
+        (re-search-forward "[^ >]*" tag-end t nil)
+        (setq tag-name (match-string-no-properties 0))
+        ;; id
+        (goto-char tag-start)
+        (if (re-search-forward "id ?= ?\"\\(.*?\\)\"" tag-end t nil)
+            (setq tag-id (match-string-no-properties 1)))
+        ;; class
+        (goto-char tag-start)
+        (if (re-search-forward "class ?= ?\"\\(.*?\\)\"" tag-end t nil)
+            (progn
+              (setq tag-class (match-string-no-properties 1))
+              (setq tag-class (s-split " " tag-class t))))
+
+        ;; return tag info
+        (list tag-name (cons 'id tag-id) (cons 'class tag-class)))))))
 
 
-(defun showcss/build-selector (css-values)
+(defun showcss/find-selectors (elements)
+  "For each source buffer, get a list
+of positions of matched selectors"
+  (let ((tag-name (car elements))
+        (tag-id (cdr (nth 1 elements)))
+        (tag-css (cdr (nth 2 elements)))
+        (data nil)
+        (html-buffer (current-buffer)))
+    (dolist (source-buffer showcss/css-buffer)
+      (let ((buffer-and-fragments ()))
+        ;;(if tag-name
+        ;;    (setq buffer-and-fragments
+        ;;          (cons (showcss/get-points source-buffer 'tag tag-name)
+        ;;                buffer-and-fragments)))
+        (if tag-id
+            (setq buffer-and-fragments
+                  (cons (showcss/get-points source-buffer 'id tag-id)
+                        buffer-and-fragments)))
+        (if tag-css
+            (setq buffer-and-fragments
+                  (cons (showcss/get-points source-buffer 'class tag-css)
+                        buffer-and-fragments)))
+        (setq buffer-and-fragments
+              (cons source-buffer
+                    (car buffer-and-fragments)))
+        ;(setq buffer-and-fragments (apply #'append 'buffer-and-fragments))
+        (setq data (cons buffer-and-fragments data))))
+    (message "%s" data)
+    (showcss/display-info data html-buffer)
+))
+
+
+(defun showcss/get-points(source-buffer type value)
+  ""
+  (let ((search-string (showcss/build-selector type value))
+        (locations ()))
+    (set-buffer source-buffer)
+    (save-excursion
+      (goto-char (point-min))
+      (while (re-search-forward search-string nil t)
+        (setq locations (cons
+          (list (match-beginning 0) (match-end 0)) locations))))
+    locations))
+
+
+(defun showcss/build-selector (type value)
   "Convert a class to \".class\" or an id to \"#id\"
 and create a regex to be used for searching in the css files.
 eg: \"\\\\(\\\\.some_class\\\\)[ ,\\n{]\""
-  (let ((selector-type (nth 0 css-values))
-        (selector-name (nth 1 css-values))
-        (full-selector nil))
-
-    (cond ((string= selector-type "class")
-           (setq full-selector
-                 (concat "\\." selector-name)))
-          ((string= selector-type "id")
-           (setq full-selector
-                 (concat "#" selector-name)))
+  (let ((full-selector nil))
+    (cond ((eq type 'class)
+           (setq full-selector (concat "\\(\\." (s-join "\\|\\." value) "\\)")))
+          ((eq type 'id)
+           (setq full-selector (concat "#" value)))
+          ((eq type 'tag)
+           (setq full-selector value))
           (t
-           (error (format "Wrong type of selector: %s" selector-type)))
+           (error (format "Wrong type of selector: %s" type))))
+    (if full-selector
+        (progn
+          (format ".*?%s.*?[\0-\377[:nonascii:]]*?}[^*]" full-selector)
+          (message ".*?%s.*?[\0-\377[:nonascii:]]*?}[^*]" full-selector)
           )
+      nil)))
 
-    ;; full definition
-    (format ".*?%s.*?[\0-\377[:nonascii:]]*?}[^*]" full-selector)
-    ;; selector only
-    ;(format "\\(%s\\)[ ,\n{]" full-selector)
-))
 
-(defun showcss/find-selectors (css-values)
-  ""
-  (let ((full-re-selector (showcss/build-selector css-values))
-        (html-buffer (current-buffer))
-        (data ()))
-    ;; each buffer
-    (dolist (css-buffer showcss/css-buffer)
-      (let ((buffer-and-fragments ()))
-        (save-excursion
-          (set-buffer css-buffer)
-          (goto-char (point-min))
-          ;; each fragment
-          (while (re-search-forward full-re-selector nil t)
-            (setq buffer-and-fragments
-                  (cons
-                   (list (match-beginning 0) (match-end 0)) buffer-and-fragments)))
-          (if (< 0 (length buffer-and-fragments))
-              (progn
-                (setq buffer-and-fragments (cons css-buffer buffer-and-fragments))
-                (setq data (cons buffer-and-fragments data)))))))
-
-    (let ((display-buffer (get-buffer-create "Show CSS")))
-      (set-buffer display-buffer)
+(defun showcss/display-info(data html-buffer)
+  "Create a display buffer and send the data to it."
+  (let ((display-buffer (get-buffer-create "Show CSS")))
+    (set-buffer display-buffer)
       (switch-to-buffer-other-window display-buffer)
       (buffer-combine-mode)             ;should this be call each time?
       (bc/start data)
-      (switch-to-buffer-other-window html-buffer))))
-
-
-(defun showcss/highlight-html-selector (start end html-face)
-  "Highlight the current selector in the html file"
-  (delete-overlay showcss/last-html-overlay)
-  (let ((ov (make-overlay start end)))
-    (overlay-put ov 'face html-face)
-    (setq showcss/last-html-overlay ov)))
-
-
-(defun showcss/remove-highlights()
-  "remove all highlights from all buffers"
-  (delete-overlay showcss/last-html-overlay)
-  (dolist (css-buffer showcss/css-buffer)
-    (set-buffer css-buffer)
-    (delete-overlay showcss/last-css-overlay)))
+      (switch-to-buffer-other-window html-buffer))
+)
 
 
 (defun showcss/main()
-  (let ((css-values (showcss/what-am-i)))
+  (interactive)
+  (let ((elements (showcss/what-elements)))
+    (message "%s" elements)
     ;; if is a selector:
-    (if (or (string= (nth 0 css-values) "class")
-            (string= (nth 0 css-values) "id"))
+    (if elements
         (progn
-          (showcss/find-selectors css-values))
+          (showcss/find-selectors elements))
       ;; remove overlays
-      (showcss/remove-highlights)
-      (bc/start nil))))
+      (set-buffer (get-buffer-create "Show CSS"))
+      (buffer-combine-mode)
+      (bc/start nil))
+    ))
 
 
 (defun showcss/keymove()
@@ -356,6 +377,7 @@ git repository"
           ;(set-buffer current))
 
         (showcss/set-css-buffer)
+        ;(setq showcss/html-buffer (current-buffer))
         ;; (setq showcss/timer
         ;;       (run-with-idle-timer
         ;;        showcss/update-delay t 'showcss/parse-html))
@@ -364,7 +386,6 @@ git repository"
         )
 
     ;; else
-    ;(showcss/remove-highlights)
     ;(cancel-timer showcss/timer)
     (remove-hook 'post-command-hook 'showcss/keymove t)
     ))

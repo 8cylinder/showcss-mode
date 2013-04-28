@@ -23,8 +23,8 @@
 ;;
 ;; You should have received a copy of the GNU General Public License
 ;; along with GNU Emacs; see the file COPYING.  If not, write to the
-;; author of this program <mboyer@ireq-robot.hydro.qc.ca> or to the
-;; Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+;; author of this program or to the Free Software Foundation, 675 Mass
+;; Ave, Cambridge, MA 02139, USA.
 
 ;;; Commentary:
 ;;
@@ -37,7 +37,7 @@
 ;;
 ;; Data structure bc/start requires:
 ;; '((filename-or-buffer (start end) (start end) ...)
-;;   (another-file (start end) ...)
+;;   (another-filename-or-buffer (start end) ...)
 ;;   (...))
 ;;
 ;; INSTALLATION
@@ -152,8 +152,6 @@ edits made in the Show CSS buffer:\n")
   "Build the display for each fragment"
   (set-buffer bc/this-buffer)
   (remove-overlays)
-  ;(remove-hook 'kill-buffer-hook 'bc/remove-source-overlays t)
-  ;(add-hook 'kill-buffer-hook 'bc/remove-source-overlays nil t)
   (erase-buffer)
   (dolist (file-and-overlays buffers-data)
     (let ((buf (car file-and-overlays)))
@@ -174,7 +172,8 @@ edits made in the Show CSS buffer:\n")
                          '(bc/send-back-to-source))
             (overlay-put display-ov 'source-overlay source-ov)
             (overlay-put display-ov 'face 'buffer-combine/region-face))
-          (insert "\n")))))
+          ;(insert "\n")
+          ))))
   (goto-char (point-min)))
 
 
