@@ -112,7 +112,7 @@
   "Highlight the selector the cursor is in"
   :group 'showcss)
 
-(defcustom showcss/update-delay 4
+(defcustom showcss/update-delay 1
   "Number of seconds of idle time from last keypress
 before updating selectors display"
   :group 'showcss
@@ -345,9 +345,9 @@ eg: \"\\\\(\\\\.some_class\\\\)[ ,\\n{]\""
       (bc/start nil))
     ))
 
-
-(defun showcss/keymove()
-  (if (memq this-command
+(defun showcss/timer()
+  ""
+  (if (memq last-command
             '(next-line
               previous-line
               right-char
@@ -356,7 +356,8 @@ eg: \"\\\\(\\\\.some_class\\\\)[ ,\\n{]\""
               backward-word
               forward-sexp
               backward-sexp))
-      (showcss/main)))
+      (showcss/main)
+      ))
 
 
 ;;;###autoload
@@ -371,23 +372,16 @@ git repository"
 
   (if showcss-mode
       (progn
-        ;(let ((current (current-buffer)))
-          ;(set-buffer showcss/display-buffer)
-          ;(buffer-combine-mode)
-          ;(set-buffer current))
-
         (showcss/set-css-buffer)
         ;(setq showcss/html-buffer (current-buffer))
-        ;; (setq showcss/timer
-        ;;       (run-with-idle-timer
-        ;;        showcss/update-delay t 'showcss/parse-html))
-        (add-hook 'post-command-hook 'showcss/keymove nil t)
+        (setq showcss/timer
+              (run-with-idle-timer
+               showcss/update-delay t 'showcss/timer))
         ;(add-hook 'after-save-hook 'showcss/parse-html nil t)
         )
 
     ;; else
-    ;(cancel-timer showcss/timer)
-    (remove-hook 'post-command-hook 'showcss/keymove t)
+    (cancel-timer showcss/timer)
     ))
 
 
