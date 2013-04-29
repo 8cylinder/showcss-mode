@@ -97,20 +97,6 @@
   :prefix "showcss/"
   :group 'Text)
 
-(defface showcss/css-face
-  '((t (:foreground "white" :background "darkgreen")))
-  "Highlight the matched selector in the css file"
-  :group 'showcss)
-
-(defface showcss/html-matched-face
-  '((t (:foreground "white" :background "darkgreen")))
-  "Highlight the selector the cursor is in"
-  :group 'showcss)
-
-(defface showcss/html-unmatched-face
-  '((t (:foreground "white" :background "darkred")))
-  "Highlight the selector the cursor is in"
-  :group 'showcss)
 
 (defcustom showcss/update-delay 1
   "Number of seconds of idle time from last keypress
@@ -125,14 +111,6 @@ to view"
   :group 'showcss
   :type 'boolean)
 
-
-(defvar showcss/last-css-overlay (make-overlay 0 0)
-  "this is the last overlay set in the css file")
-(make-variable-buffer-local 'showcss/last-css-overlay)
-;; should be make-local-variable
-(defvar showcss/last-html-overlay (make-overlay 0 0)
-  "this is the last overlay set in the html file")
-(make-variable-buffer-local 'showcss/last-html-overlay)
 
 (defvar showcss/css-buffer nil
   "The buffer that contains the css file")
@@ -347,17 +325,18 @@ eg: \"\\\\(\\\\.some_class\\\\)[ ,\\n{]\""
 
 (defun showcss/timer()
   ""
-  (if (memq last-command
-            '(next-line
-              previous-line
-              right-char
-              left-char
-              forward-word
-              backward-word
-              forward-sexp
-              backward-sexp))
-      (showcss/main)
-      ))
+  ;(message "scss: %s" (buffer-name))
+  (if (not (string= (buffer-name) "Show CSS"))
+      (if (memq last-command
+                '(next-line
+                  previous-line
+                  right-char
+                  left-char
+                  forward-word
+                  backward-word
+                  forward-sexp
+                  backward-sexp))
+          (showcss/main))))
 
 
 ;;;###autoload
@@ -367,7 +346,7 @@ Visit https://github.com/smmcg/showcss-mode to view the
 git repository"
 
   :init-value nil
-  :lighter " Show"
+  :lighter " ShowCSS"
   :keymap '(([C-c C-u] . showcss/parse-html))
 
   (if showcss-mode

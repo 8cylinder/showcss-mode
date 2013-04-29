@@ -9,66 +9,11 @@ Show CSS is a minor mode for emacs.
 With showcss-mode turned on, as you navigate around an HTML file the
 matching css for that element will be displayed in another buffer.
 
-[[http://i.imgur.com/VCqEwAp.gif]]
+** Current status
 
-In the current html buffer, if you move the cursor over a class=".*?"
-or id=".*?" a buffer will open with the external css file loaded and
-scrolled to the matching selector.
+*Show css is undergoing major changes.*
 
-Show Css will look at the <link> tags and a custom comment tag to get
-the location of external css files.
+This is an unstable commit.  For a stable commit, go to
+[[https://github.com/smmcg/showcss-mode/tree/505d8374bc35e8e76ca7f14cce25dc9e6c9d9570]]
 
-Show Css looks for a comment with this regex:
- : <!-- showcss: \\(.*?\\) -->
-
-For example:
- : <!-- showcss: /home/user/projects/facebook/site/css/main.css -->
-or
- : <!-- showcss: ./sass_files/main.sass-->
-
-The comment is useful if you want to use sass files directly instead
-of compiling them.  Also showcss-mode will only use local files.  So
-if you use css on a remote server, you will need to use the showcss
-tag in you html file and have it point to a local copy of that css.
-
-*Tested on emacs 24.*
-
-** Usage
-
-Put this in your init.el or .emacs file:
-
-#+BEGIN_SRC emacs-lisp
-  (autoload 'showcss-mode "show_css"
-     "Display the css of the class or id the cursor is at" t)
-#+END_SRC
-
-Personally, I find this mode to distracting to use all the time, so I
-use this function to quickly toggle the mode on and off.
-
-#+BEGIN_SRC emacs-lisp
-(defun sm/toggle-showcss()
-  "Toggle showcss-mode"
-  (interactive)
-  (if (derived-mode-p
-       'html-mode
-       'nxml-mode
-       'nxhtml-mode
-       'web-mode
-       'handlebars-mode)
-      (showcss-mode 'toggle)
-    (message "Not in an html mode")))
-(global-set-key (kbd "C-c C-k") 'sm/toggle-showcss)
-#+END_SRC
-
-** Customize options
-
- : <alt x>customize-group<ret>showcss
-
-Customize three faces; html match found, html no match found, and css
-element.  Also you can set the mode so that it only gets the css
-location from the magic comments and not from the link tag.
-
-** Todo
-
-  1) Show css from style attributes that have multiple classes.
-     e.g. style="style1 style2 style3"
+This is the version thats distributed through [[http://marmalade-repo.org/][Marmalade]]

@@ -61,6 +61,11 @@
  "Highlight the full selector"
  :group 'buffer-combine)
 
+(defface buffer-combine/header-face
+'((t (:background "grey50")))
+"Face for headers"
+:group 'buffer-combine)
+
 
 (defvar bc/buffers-data nil
   "data format:
@@ -154,13 +159,23 @@ edits made in the Show CSS buffer:\n")
   (remove-overlays)
   (erase-buffer)
   (dolist (file-and-overlays buffers-data)
-    (let ((buf (car file-and-overlays)))
-      (insert (format "\n\n/* %s */\n" (file-name-nondirectory
+    (let ((buf (car file-and-overlays))
+          (header-ov nil))
+      ;; insert header
+      ;;(insert (format "\n\n/* %s */\n" (file-name-nondirectory
+      ;;                                  (buffer-file-name buf))))
+      (insert (format "\n\n%s\n" (file-name-nondirectory
                                         (buffer-file-name buf))))
+      (setq header-ov (make-overlay
+       (progn (forward-line -1) (point))
+       (progn (forward-line 1) (point)) nil nil nil))
+      (overlay-put header-ov 'face 'buffer-combine/header-face)
+
       (dolist (source-ov (cdr file-and-overlays))
         (let* ((source-start (overlay-start source-ov))
                (source-end (overlay-end source-ov))
                (display-length (- source-end source-start)))
+          ;; insert css fragments
           (insert-buffer-substring-no-properties
            buf
            (overlay-start source-ov)
