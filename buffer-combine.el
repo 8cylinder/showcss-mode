@@ -66,6 +66,16 @@
 "Face for headers"
 :group 'buffer-combine)
 
+(defface buffer-combine/header-filepath-face
+'((t (:foreground "grey20")))
+"Face for headers"
+:group 'buffer-combine)
+
+(defcustom buffer-combine/path-length 30
+  "Number of characters of the path to show"
+  :group 'buffer-combine
+  :type 'number)
+
 
 (defvar bc/buffers-data nil
   "data format:
@@ -159,17 +169,29 @@ edits made in the Show CSS buffer:\n")
   (remove-overlays)
   (erase-buffer)
   (dolist (file-and-overlays buffers-data)
-    (let ((buf (car file-and-overlays))
-          (header-ov nil))
+    (let* ((buf (car file-and-overlays))
+          (header-ov nil)
+          (header-path-ov nil)
+          (path (file-name-directory (buffer-file-name buf)))
+          (save-point nil)
+          )
       ;; insert header
-      ;;(insert (format "\n\n/* %s */\n" (file-name-nondirectory
-      ;;                                  (buffer-file-name buf))))
-      (insert (format "\n\n%s\n" (file-name-nondirectory
-                                        (buffer-file-name buf))))
+      (insert (format "\n%s" (file-name-nondirectory
+                              (buffer-file-name buf))))
       (setq header-ov (make-overlay
-       (progn (forward-line -1) (point))
-       (progn (forward-line 1) (point)) nil nil nil))
+                       (progn (move-beginning-of-line nil) (point))
+                       (progn (move-end-of-line nil) (point)) nil nil nil))
       (overlay-put header-ov 'face 'buffer-combine/header-face)
+
+      (insert "  ")  ; some space between file name and path
+
+      ;; insert file path
+      (setq save-point (point))
+      (insert (concat "..." (s-right buffer-combine/path-length path)))
+      (setq header-path-ov (make-overlay save-point (point)))
+      (overlay-put header-path-ov 'face 'buffer-combine/header-filepath-face)
+
+      (insert "\n")
 
       (dolist (source-ov (cdr file-and-overlays))
         (let* ((source-start (overlay-start source-ov))

@@ -114,18 +114,18 @@ to view"
 
 (defvar showcss/css-buffer nil
   "The buffer that contains the css file")
-(make-variable-buffer-local 'showcss/css-buffer)
+(make-local-variable 'showcss/css-buffer)
 
 (defvar showcss/html-buffer nil
   "The buffer that contains the html file")
-(make-variable-buffer-local 'showcss/html-buffer)
+(make-local-variable 'showcss/html-buffer)
 
 (defvar showcss/parents nil
   "The list of parents for the current tag")
-(make-variable-buffer-local 'showcss/parents)
+(make-local-variable 'showcss/parents)
 
 (defvar showcss/timer nil)
-(make-variable-buffer-local 'showcss/timer)
+(make-local-variable 'showcss/timer)
 
 (defvar showcss/display-buffer nil
   "The buffer to display the matches in")
@@ -254,11 +254,14 @@ of positions of matched selectors"
             (setq buffer-and-fragments
                   (cons (showcss/get-points source-buffer 'class tag-css)
                         buffer-and-fragments)))
-        (setq buffer-and-fragments
-              (cons source-buffer
-                    (car buffer-and-fragments)))
-        ;(setq buffer-and-fragments (apply #'append 'buffer-and-fragments))
-        (setq data (cons buffer-and-fragments data))))
+        (if (car buffer-and-fragments)
+            (progn
+              (setq buffer-and-fragments
+                    (cons source-buffer
+                          (car buffer-and-fragments)))
+              (setq data (cons buffer-and-fragments data)))
+          (setq buffer-and-fragments nil))
+        ))
     (message "%s" data)
     (showcss/display-info data html-buffer)
 ))
@@ -292,8 +295,8 @@ eg: \"\\\\(\\\\.some_class\\\\)[ ,\\n{]\""
            (error (format "Wrong type of selector: %s" type))))
     (if full-selector
         (progn
-          (format ".*?%s.*?[\0-\377[:nonascii:]]*?}[^*]" full-selector)
           (message ".*?%s.*?[\0-\377[:nonascii:]]*?}[^*]" full-selector)
+          (format ".*?%s.*?[\0-\377[:nonascii:]]*?}[^*]" full-selector)
           )
       nil)))
 
@@ -323,20 +326,19 @@ eg: \"\\\\(\\\\.some_class\\\\)[ ,\\n{]\""
       (bc/start nil))
     ))
 
-(defun showcss/timer()
+(defun showcss/timerfunc()
   ""
-  ;(message "scss: %s" (buffer-name))
-  (if (not (string= (buffer-name) "Show CSS"))
-      (if (memq last-command
-                '(next-line
-                  previous-line
-                  right-char
-                  left-char
-                  forward-word
-                  backward-word
-                  forward-sexp
-                  backward-sexp))
-          (showcss/main))))
+  (if (and (string= (buffer-name) (buffer-name showcss/html-buffer))
+           (memq last-command
+                 '(next-line
+                   previous-line
+                   right-char
+                   left-char
+                   forward-word
+                   backward-word
+                   forward-sexp
+                  backward-sexp)))
+      (showcss/main)))
 
 
 ;;;###autoload
@@ -352,10 +354,10 @@ git repository"
   (if showcss-mode
       (progn
         (showcss/set-css-buffer)
-        ;(setq showcss/html-buffer (current-buffer))
+        (setq showcss/html-buffer (current-buffer))
         (setq showcss/timer
               (run-with-idle-timer
-               showcss/update-delay t 'showcss/timer))
+               showcss/update-delay t 'showcss/timerfunc))
         ;(add-hook 'after-save-hook 'showcss/parse-html nil t)
         )
 
