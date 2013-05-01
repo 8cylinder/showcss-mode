@@ -269,6 +269,7 @@ linked overlay in the source buffer"
   (setq bc/this-buffer (current-buffer))
   (add-hook 'kill-buffer-hook 'bc/remove-source-overlays nil t))
 
+
 ;  (if buffer-combine-mode
 ;      (progn
 ;        (setq bc/this-buffer (current-buffer))

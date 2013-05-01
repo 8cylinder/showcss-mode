@@ -124,8 +124,8 @@ to view"
   "The list of parents for the current tag")
 (make-local-variable 'showcss/parents)
 
+;; keep global
 (defvar showcss/timer nil)
-(make-local-variable 'showcss/timer)
 
 (defvar showcss/display-buffer nil
   "The buffer to display the matches in")
@@ -193,7 +193,6 @@ Eg:
 It returns the tag name, id and class lists.
 For example:
 \(\"div\" (\"id\" . \"someid\") (class \"dog\" \"cat\"))"
-  (setq showcss/html-buffer (current-buffer))
   (save-excursion
     (re-search-backward "\\(>\\|</\\|<!\\|<\\)" nil t)
     (cond
@@ -262,7 +261,6 @@ of positions of matched selectors"
               (setq data (cons buffer-and-fragments data)))
           (setq buffer-and-fragments nil))
         ))
-    (message "%s" data)
     (showcss/display-info data html-buffer)
 ))
 
@@ -295,7 +293,6 @@ eg: \"\\\\(\\\\.some_class\\\\)[ ,\\n{]\""
            (error (format "Wrong type of selector: %s" type))))
     (if full-selector
         (progn
-          (message ".*?%s.*?[\0-\377[:nonascii:]]*?}[^*]" full-selector)
           (format ".*?%s.*?[\0-\377[:nonascii:]]*?}[^*]" full-selector)
           )
       nil)))
@@ -315,7 +312,6 @@ eg: \"\\\\(\\\\.some_class\\\\)[ ,\\n{]\""
 (defun showcss/main()
   (interactive)
   (let ((elements (showcss/what-elements)))
-    (message "%s" elements)
     ;; if is a selector:
     (if elements
         (progn
@@ -328,8 +324,9 @@ eg: \"\\\\(\\\\.some_class\\\\)[ ,\\n{]\""
 
 (defun showcss/timerfunc()
   ""
-  (if (and (string= (buffer-name) (buffer-name showcss/html-buffer))
-           (memq last-command
+  (if (and showcss/html-buffer
+           (and (string= (buffer-name) (buffer-name showcss/html-buffer))
+                (memq last-command
                  '(next-line
                    previous-line
                    right-char
@@ -337,8 +334,8 @@ eg: \"\\\\(\\\\.some_class\\\\)[ ,\\n{]\""
                    forward-word
                    backward-word
                    forward-sexp
-                  backward-sexp)))
-      (showcss/main)))
+                  backward-sexp))))
+        (showcss/main)))
 
 
 ;;;###autoload
@@ -355,14 +352,16 @@ git repository"
       (progn
         (showcss/set-css-buffer)
         (setq showcss/html-buffer (current-buffer))
-        (setq showcss/timer
-              (run-with-idle-timer
-               showcss/update-delay t 'showcss/timerfunc))
+        (if (not showcss/timer)
+            (setq showcss/timer
+                  (run-with-idle-timer
+                   showcss/update-delay t 'showcss/timerfunc)))
         ;(add-hook 'after-save-hook 'showcss/parse-html nil t)
         )
 
     ;; else
-    (cancel-timer showcss/timer)
+    (setq showcss/html-buffer nil)
+    ;;(cancel-timer showcss/timer) ; TODO: cancel-timer only after all showcss-modes have been turned off.
     ))
 
 
