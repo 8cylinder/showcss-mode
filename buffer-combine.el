@@ -1,5 +1,4 @@
-;;; buffer-combine.el
-;;; show-css.el --- Show the css of the html attribute the cursor is on
+;;; buffer-combine.el --- Display parts of other buffers in one display buffer
 ;;
 ;; Copyright (C) 2012 Sheldon McGrandle
 ;;
@@ -51,32 +50,6 @@
 (require 's)
 
 
-(defgroup buffer-combine nil
- "Customize buffer-combine"
- :prefix "buffer-combine"
- :group 'Text)
-
-(defface buffer-combine/region-face
- '((t (:background "grey50")))
- "Highlight the full selector"
- :group 'buffer-combine)
-
-(defface buffer-combine/header-face
-'((t (:background "grey50")))
-"Face for headers"
-:group 'buffer-combine)
-
-(defface buffer-combine/header-filepath-face
-'((t (:foreground "grey20")))
-"Face for headers"
-:group 'buffer-combine)
-
-(defcustom buffer-combine/path-length 30
-  "Number of characters of the path to show"
-  :group 'buffer-combine
-  :type 'number)
-
-
 (defvar bc/buffers-data nil
   "data format:
 '((filename overlay1 overlay2 overlay3)
@@ -90,6 +63,10 @@
 (defun* bc/start (data &key (readonly nil) (hidden nil))
   "Recieve and parse the data
 two optional flags readonly and hidden"
+  (set-buffer (get-buffer-create "Show CSS"))
+  (add-hook 'kill-buffer-hook 'bc/remove-source-overlays nil t)
+  (setq bc/this-buffer (current-buffer))
+  (css-mode)
   (bc/remove-source-overlays)
   (let ((buffers-data '()))
     ;;for each file and its fragment positions:
@@ -100,8 +77,11 @@ two optional flags readonly and hidden"
               (cons (bc/mark-fragments-in-source buffer (cdr filelist))
                     buffers-data))))
     (setq bc/buffers-data buffers-data)
-    (bc/build-display buffers-data)))
-
+    (bc/build-display buffers-data))
+  (display-buffer bc/this-buffer)
+  ;(switch-to-buffer-other-window bc/this-buffer)
+  ;(switch-to-buffer-other-window showcss/html-buffer)
+)
 
 (defun bc/load-file (file hidden)
   "Load the files from disk and if hidden is t,
@@ -136,7 +116,6 @@ rename them with a space in front of the buffer title"
 (defun bc/mark-fragments-in-source(buffer fragments)
   "Iterate over all the fragments in one buffer"
   (set-buffer buffer)
-  ;(switch-to-buffer buffer)
   (remove-overlays)
   (let ((buffer-overlay-list (cons buffer '())))
     (dolist (fragment fragments)
@@ -153,7 +132,7 @@ rename them with a space in front of the buffer title"
 (defun bc/mark-fragment-in-source (buffer start end)
   "Mark a fragments in a buffer with an overlay"
   (let ((ov (make-overlay start end)))
-    (overlay-put ov 'face 'buffer-combine/region-face)
+    (overlay-put ov 'face 'showcss/region-face)
     (overlay-put ov 'before-string
                  "\nChanges made here will be overwritten by
 edits made in the Show CSS buffer:\n")
@@ -165,7 +144,7 @@ edits made in the Show CSS buffer:\n")
 
 (defun bc/build-display(buffers-data)
   "Build the display for each fragment"
-  (set-buffer bc/this-buffer)
+  (set-buffer bc/this-buffer)           ;
   (remove-overlays)
   (erase-buffer)
   (dolist (file-and-overlays buffers-data)
@@ -181,15 +160,36 @@ edits made in the Show CSS buffer:\n")
       (setq header-ov (make-overlay
                        (progn (move-beginning-of-line nil) (point))
                        (progn (move-end-of-line nil) (point)) nil nil nil))
-      (overlay-put header-ov 'face 'buffer-combine/header-face)
-
-      (insert "  ")  ; some space between file name and path
-
+      (overlay-put header-ov 'face 'showcss/header-face)
+      ;(overlay-put header-ov 'mouse-face '((t (:foreground "green"))))
+      (insert "  ")
+      ;; view button
+      (insert-text-button
+       "View"
+       'action (lambda (button)
+                 (switch-to-buffer
+                  (button-get button 'source-buffer) nil t))
+       'source-buffer buf
+       'follow-link t
+       'help-echo (format "Switch to %s"
+                    (file-name-nondirectory (buffer-file-name buf))))
+      (insert "  ")
+      ;; save button
+      (insert-text-button
+       "Save"
+       'action (lambda (button)
+                 (set-buffer (button-get button 'source-buffer)) (save-buffer))
+       'source-buffer buf
+       'follow-link t
+       'help-echo (format "Save %s"
+                    (file-name-nondirectory (buffer-file-name buf))))
+      (insert "\n")
       ;; insert file path
       (setq save-point (point))
-      (insert (concat "..." (s-right buffer-combine/path-length path)))
+      ;;(insert (concat "..." (s-right buffer-combine/path-length path)))
+      (insert path)
       (setq header-path-ov (make-overlay save-point (point)))
-      (overlay-put header-path-ov 'face 'buffer-combine/header-filepath-face)
+      (overlay-put header-path-ov 'face 'showcss/header-filepath-face)
 
       (insert "\n")
 
@@ -208,7 +208,7 @@ edits made in the Show CSS buffer:\n")
             (overlay-put display-ov 'modification-hooks
                          '(bc/send-back-to-source))
             (overlay-put display-ov 'source-overlay source-ov)
-            (overlay-put display-ov 'face 'buffer-combine/region-face))
+            (overlay-put display-ov 'face 'showcss/region-face))
           ;(message "%s %s" (char-after (overlay-end display-ov)) "overlay:")
           ;(insert "\n")
           ))))
@@ -262,12 +262,12 @@ linked overlay in the source buffer"
 
 
 ;; derive from css-mode, sass-mode?
-(define-derived-mode buffer-combine-mode css-mode "Combine"
-  "Display fragments from other buffers
-\\{buffer-combine-mode-map}"
-
-  (setq bc/this-buffer (current-buffer))
-  (add-hook 'kill-buffer-hook 'bc/remove-source-overlays nil t))
+;;;;(define-derived-mode buffer-combine-mode css-mode "Combine"
+;;;;  "Display fragments from other buffers
+;;;;\\{buffer-combine-mode-map}"
+;;;;
+;;;;  (setq bc/this-buffer (current-buffer))
+;;;;  (add-hook 'kill-buffer-hook 'bc/remove-source-overlays nil t))
 
 
 ;  (if buffer-combine-mode
@@ -280,4 +280,4 @@ linked overlay in the source buffer"
 
 (provide 'buffer-combine)
 
-;;; buffer-combine-mode.el ends here
+;;; buffer-combine.el ends here

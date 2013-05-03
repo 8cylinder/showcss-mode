@@ -98,7 +98,7 @@
   :group 'Text)
 
 
-(defcustom showcss/update-delay 1
+(defcustom showcss/update-delay 0.5
   "Number of seconds of idle time from last keypress
 before updating selectors display"
   :group 'showcss
@@ -110,6 +110,21 @@ Turn off if you want to only comments to explicitly set the css
 to view"
   :group 'showcss
   :type 'boolean)
+
+(defface showcss/region-face
+ '((t (:background "grey50")))
+ "Highlight the full selector"
+ :group 'showcss)
+
+(defface showcss/header-face
+'((t (:background "grey50")))
+"Face for headers"
+:group 'showcss)
+
+(defface showcss/header-filepath-face
+'((t (:foreground "grey20")))
+"Face for headers"
+:group 'showcss)
 
 
 (defvar showcss/css-buffer nil
@@ -277,6 +292,34 @@ of positions of matched selectors"
           (list (match-beginning 0) (match-end 0)) locations))))
     locations))
 
+(defun showcss/get-points(source-buffer type value)
+  ""
+  (let ((search-string (showcss/build-selector type value))
+        (locations ()))
+    (set-buffer source-buffer)
+    (save-excursion
+      (goto-char (point-min))
+      (while (search-forward search-string nil t)
+        (unless (in-a-comment)
+          (re-search-backward "\\(}\\|\n\\)" nil 'noerror)
+          (setq start-point (point))
+          (while (search-forward "}")
+            (if (not (in-a-comment))
+                (if (looking-at "\n")
+                    (forward-char))
+              (setq end-point (point)))
+
+))))))
+
+;; search forward for selector
+;; search back for } or \n              ; to include other selectors
+;; move forward til no white space
+;; set point
+;; search forward for } (skip comments)
+;; if next char is \n: move forward 1 char
+;; set point
+
+
 
 (defun showcss/build-selector (type value)
   "Convert a class to \".class\" or an id to \"#id\"
@@ -302,10 +345,10 @@ eg: \"\\\\(\\\\.some_class\\\\)[ ,\\n{]\""
   "Create a display buffer and send the data to it."
   (let ((display-buffer (get-buffer-create "Show CSS")))
     (set-buffer display-buffer)
-      (switch-to-buffer-other-window display-buffer)
-      (buffer-combine-mode)             ;should this be call each time?
-      (bc/start data)
-      (switch-to-buffer-other-window html-buffer))
+    (switch-to-buffer-other-window display-buffer)
+    (css-mode)             ;should this be call each time?
+    (bc/start data)
+    (switch-to-buffer-other-window html-buffer))
 )
 
 
@@ -318,7 +361,7 @@ eg: \"\\\\(\\\\.some_class\\\\)[ ,\\n{]\""
           (showcss/find-selectors elements))
       ;; remove overlays
       (set-buffer (get-buffer-create "Show CSS"))
-      (buffer-combine-mode)
+      (css-mode)
       (bc/start nil))
     ))
 
@@ -361,6 +404,7 @@ git repository"
 
     ;; else
     (setq showcss/html-buffer nil)
+    (bc/remove-source-overlays)
     ;;(cancel-timer showcss/timer) ; TODO: cancel-timer only after all showcss-modes have been turned off.
     ))
 
