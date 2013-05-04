@@ -134,10 +134,10 @@ rename them with a space in front of the buffer title"
   (let ((ov (make-overlay start end)))
     (overlay-put ov 'face 'showcss/region-face)
     (overlay-put ov 'before-string
-                 "\nChanges made here will be overwritten by
+                 "Changes made here will be overwritten by
 edits made in the Show CSS buffer:\n")
     (overlay-put ov 'after-string
-                 "-----------------------------------------\n")
+                 "\n")
     ;; return <ov>:
     ov))
 
@@ -208,9 +208,10 @@ edits made in the Show CSS buffer:\n")
             (overlay-put display-ov 'modification-hooks
                          '(bc/send-back-to-source))
             (overlay-put display-ov 'source-overlay source-ov)
-            (overlay-put display-ov 'face 'showcss/region-face))
-          ;(message "%s %s" (char-after (overlay-end display-ov)) "overlay:")
-          ;(insert "\n")
+            (overlay-put display-ov 'face 'showcss/region-face)
+            ;; if the fragment doesn't end in a newline, add one to the display
+            (unless (string= (string (char-before (overlay-end display-ov))) "\n")
+                (insert "\n")))
           ))))
   (goto-char (point-min)))
 

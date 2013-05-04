@@ -283,42 +283,42 @@ of positions of matched selectors"
 (defun showcss/get-points(source-buffer type value)
   ""
   (let ((search-string (showcss/build-selector type value))
-        (locations ()))
+        (locations ())
+        (start-point nil)
+        (end-point nil))
     (set-buffer source-buffer)
+    (switch-to-buffer source-buffer)
     (save-excursion
       (goto-char (point-min))
-      (while (re-search-forward search-string nil t)
-        (setq locations (cons
-          (list (match-beginning 0) (match-end 0)) locations))))
-    locations))
+      (while (showcss/search search-string)
+        (re-search-backward "\\(}\\|\n\\)" nil 'noerror 1)
+        (if (looking-at "}") (forward-char))
+        (while (looking-at "\n") (forward-char))
+        (setq start-point (point))
+        (showcss/search "}")
+        (if (looking-at "\n")
+            (forward-char))
+        (setq end-point (point))
 
-(defun showcss/get-points(source-buffer type value)
-  ""
-  (let ((search-string (showcss/build-selector type value))
-        (locations ()))
-    (set-buffer source-buffer)
-    (save-excursion
-      (goto-char (point-min))
-      (while (search-forward search-string nil t)
-        (unless (in-a-comment)
-          (re-search-backward "\\(}\\|\n\\)" nil 'noerror)
-          (setq start-point (point))
-          (while (search-forward "}")
-            (if (not (in-a-comment))
-                (if (looking-at "\n")
-                    (forward-char))
-              (setq end-point (point)))
+        (setq locations (cons (list start-point end-point) locations)))
+    locations)))
 
-))))))
 
-;; search forward for selector
-;; search back for } or \n              ; to include other selectors
-;; move forward til no white space
-;; set point
-;; search forward for } (skip comments)
-;; if next char is \n: move forward 1 char
-;; set point
-
+(defun showcss/search(regexp &optional backwards)
+  "Search forward or backward for first
+regexp not inside a comment or string."
+  (let ((start (point)))
+    (if backwards
+        (while
+            (and
+             (re-search-backward regexp nil t 1)
+             (nth 8 (syntax-ppss))))
+      (while
+          (and
+           (re-search-forward regexp nil t 1)
+           (nth 8 (syntax-ppss)))))
+    (unless (= start (point))
+      t)))
 
 
 (defun showcss/build-selector (type value)
@@ -336,7 +336,8 @@ eg: \"\\\\(\\\\.some_class\\\\)[ ,\\n{]\""
            (error (format "Wrong type of selector: %s" type))))
     (if full-selector
         (progn
-          (format ".*?%s.*?[\0-\377[:nonascii:]]*?}[^*]" full-selector)
+          full-selector
+          ;(format ".*?%s.*?[\0-\377[:nonascii:]]*?}[^*]" full-selector)
           )
       nil)))
 
@@ -348,8 +349,7 @@ eg: \"\\\\(\\\\.some_class\\\\)[ ,\\n{]\""
     (switch-to-buffer-other-window display-buffer)
     (css-mode)             ;should this be call each time?
     (bc/start data)
-    (switch-to-buffer-other-window html-buffer))
-)
+    (switch-to-buffer-other-window html-buffer)))
 
 
 (defun showcss/main()
@@ -362,8 +362,8 @@ eg: \"\\\\(\\\\.some_class\\\\)[ ,\\n{]\""
       ;; remove overlays
       (set-buffer (get-buffer-create "Show CSS"))
       (css-mode)
-      (bc/start nil))
-    ))
+      (bc/start nil))))
+
 
 (defun showcss/timerfunc()
   ""
