@@ -260,19 +260,20 @@ of positions of matched selectors"
         ;;    (setq buffer-and-fragments
         ;;          (cons (showcss/get-points source-buffer 'tag tag-name)
         ;;                buffer-and-fragments)))
+        (if tag-css
+            (mapcar (lambda (e)
+                      (setq buffer-and-fragments (cons e buffer-and-fragments)))
+                    (showcss/get-points source-buffer 'class tag-css)))
         (if tag-id
             (setq buffer-and-fragments
-                  (cons (showcss/get-points source-buffer 'id tag-id)
+                  (cons (car (showcss/get-points source-buffer 'id tag-id))
                         buffer-and-fragments)))
-        (if tag-css
-            (setq buffer-and-fragments
-                  (cons (showcss/get-points source-buffer 'class tag-css)
-                        buffer-and-fragments)))
+
         (if (car buffer-and-fragments)
             (progn
               (setq buffer-and-fragments
                     (cons source-buffer
-                          (car buffer-and-fragments)))
+                          buffer-and-fragments))
               (setq data (cons buffer-and-fragments data)))
           (setq buffer-and-fragments nil))
         ))
@@ -281,17 +282,17 @@ of positions of matched selectors"
 
 
 (defun showcss/get-points(source-buffer type value)
-  ""
+  "Parse css and return a list of beginning and end for each
+matching selector (and its declarations)"
   (let ((search-string (showcss/build-selector type value))
         (locations ())
         (start-point nil)
         (end-point nil))
     (set-buffer source-buffer)
-    (switch-to-buffer source-buffer)
     (save-excursion
       (goto-char (point-min))
       (while (showcss/search search-string)
-        (re-search-backward "\\(}\\|\n\\)" nil 'noerror 1)
+        (showcss/search "\\(}\\|\n\\)" 'backwards)
         (if (looking-at "}") (forward-char))
         (while (looking-at "\n") (forward-char))
         (setq start-point (point))
@@ -327,13 +328,14 @@ and create a regex to be used for searching in the css files.
 eg: \"\\\\(\\\\.some_class\\\\)[ ,\\n{]\""
   (let ((full-selector nil))
     (cond ((eq type 'class)
-           (setq full-selector (concat "\\(\\." (s-join "\\|\\." value) "\\)")))
+           (setq full-selector (concat "\\(\\." (s-join "\\>\\|\\." value) "\\>\\)")))
           ((eq type 'id)
-           (setq full-selector (concat "#" value)))
+           (setq full-selector (concat "#" value "\\>")))
           ((eq type 'tag)
            (setq full-selector value))
           (t
            (error (format "Wrong type of selector: %s" type))))
+    ;(message full-selector)
     (if full-selector
         (progn
           full-selector

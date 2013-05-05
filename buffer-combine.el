@@ -117,6 +117,9 @@ rename them with a space in front of the buffer title"
   "Iterate over all the fragments in one buffer"
   (set-buffer buffer)
   (remove-overlays)
+  (add-hook 'first-change-hook 'bc/set-modification-flag nil t)
+  (add-hook 'after-save-hook 'bc/unset-modification-flag nil t)
+
   (let ((buffer-overlay-list (cons buffer '())))
     (dolist (fragment fragments)
       (setq buffer-overlay-list
@@ -129,22 +132,45 @@ rename them with a space in front of the buffer title"
     (reverse buffer-overlay-list)))
 
 
+(defun bc/set-modification-flag(&optional beginning end length)
+  (bc/change-modification-flag 'on))
+
+(defun bc/unset-modification-flag()
+  (bc/change-modification-flag 'off))
+
+(defun bc/change-modification-flag(state &optional bname)
+  "Set a modification flag if the source buffer has changed"
+  ;(save-excursion
+    (let ((source-buffer (if bname bname (buffer-name))))
+      (set-buffer bc/this-buffer)
+      (dolist (ov (overlays-in (point-min) (point-max)))
+        (if (string= (overlay-get ov 'filename) source-buffer)
+          (progn
+            (goto-char (overlay-start ov))
+            (if (eq state 'on)
+                (if (not (looking-at "*"))
+                    (insert "*"))
+              (if (looking-at "*")
+                  (delete-char 1))))))));)
+
+
 (defun bc/mark-fragment-in-source (buffer start end)
-  "Mark a fragments in a buffer with an overlay"
+  "Mark a fragment in a buffer with an overlay"
   (let ((ov (make-overlay start end)))
     (overlay-put ov 'face 'showcss/region-face)
     (overlay-put ov 'before-string
-                 "Changes made here will be overwritten by
-edits made in the Show CSS buffer:\n")
-    (overlay-put ov 'after-string
-                 "\n")
+                 "Changes made in the following region will be
+|overwritten by edits made in the Show CSS buffer:\n")
+    (overlay-put ov 'line-prefix "|")
+    (overlay-put ov 'wrap-prefix "|")
+
     ;; return <ov>:
     ov))
 
 
 (defun bc/build-display(buffers-data)
   "Build the display for each fragment"
-  (set-buffer bc/this-buffer)           ;
+  (set-buffer bc/this-buffer)
   (remove-overlays)
   (erase-buffer)
   (dolist (file-and-overlays buffers-data)
@@ -161,7 +187,9 @@ edits made in the Show CSS buffer:\n")
                        (progn (move-beginning-of-line nil) (point))
                        (progn (move-end-of-line nil) (point)) nil nil nil))
       (overlay-put header-ov 'face 'showcss/header-face)
-      ;(overlay-put header-ov 'mouse-face '((t (:foreground "green"))))
+      ;; this is here so it can be easily found
+      (overlay-put header-ov 'filename (file-name-nondirectory
+                                        (buffer-file-name buf)))
       (insert "  ")
       ;; view button
       (insert-text-button
@@ -186,7 +214,6 @@ edits made in the Show CSS buffer:\n")
       (insert "\n")
       ;; insert file path
       (setq save-point (point))
-      ;;(insert (concat "..." (s-right buffer-combine/path-length path)))
       (insert path)
       (setq header-path-ov (make-overlay save-point (point)))
       (overlay-put header-path-ov 'face 'showcss/header-filepath-face)
@@ -209,6 +236,7 @@ edits made in the Show CSS buffer:\n")
                          '(bc/send-back-to-source))
             (overlay-put display-ov 'source-overlay source-ov)
             (overlay-put display-ov 'face 'showcss/region-face)
+            (overlay-put display-ov 'line-prefix " ")
             ;; if the fragment doesn't end in a newline, add one to the display
             (unless (string= (string (char-before (overlay-end display-ov))) "\n")
                 (insert "\n")))
@@ -220,18 +248,28 @@ edits made in the Show CSS buffer:\n")
   "Any edits made in the display buffer are sent back to the
 linked overlay in the source buffer"
   (if flag
-      (progn (let*
-        ((source-ov (overlay-get ov 'source-overlay))
-         (source-start (overlay-start source-ov))
-         (source-end (overlay-end source-ov))
-         (display-start (overlay-start ov))
-         (display-end (overlay-end ov))
-         (content (buffer-substring-no-properties
-                   display-start display-end)))
-        (set-buffer (overlay-buffer source-ov))
-        (goto-char source-start)
-        (insert content)
-        (delete-region (point) (overlay-end source-ov))))))
+      (progn
+        (let ((here (point)))
+          (bc/change-modification-flag
+           'on
+           (buffer-name (overlay-buffer (overlay-get ov 'source-overlay))))
+          (goto-char here))
+        (let*
+            ((source-ov (overlay-get ov 'source-overlay))
+             (source-start (overlay-start source-ov))
+             (source-end (overlay-end source-ov))
+             (display-start (overlay-start ov))
+             (display-end (overlay-end ov))
+                  (content (buffer-substring-no-properties
+                            display-start display-end)))
+          (set-buffer (overlay-buffer source-ov))
+          (goto-char source-start)
+          (insert content)
+          (delete-region (point) (overlay-end source-ov))
+
+         ;; set modification flag
+
+         ))))
 
 
 (defun bc/save-source-buffers()
@@ -249,10 +287,13 @@ linked overlay in the source buffer"
   "Remove all the overlays from the source buffers"
   (dolist (buffer-and-fragments bc/buffers-data)
     (let ((buffer (car buffer-and-fragments)))
-      (set-buffer buffer)
-      (dolist (ov (cdr buffer-and-fragments))
-        (delete-overlay ov))
-  )))
+      (if buffer
+          (progn
+            (set-buffer buffer)
+            (remove-hook 'first-change-hook 'bc/set-modification-flag)
+            (remove-hook 'after-save-hook 'bc/unset-modification-flag)
+            (dolist (ov (cdr buffer-and-fragments))
+              (delete-overlay ov)))))))
 
 
 (defvar buffer-combine-mode-map
