@@ -89,14 +89,15 @@
 
 ;;; Code:
 
+
 (require 'buffer-combine)
 (require 'dom)
+
 
 (defgroup showcss nil
   "Customize showcss"
   :prefix "showcss/"
   :group 'Text)
-
 
 (defcustom showcss/update-delay 0.5
   "Number of seconds of idle time from last keypress
@@ -110,6 +111,13 @@ Turn off if you want to only comments to explicitly set the css
 to view"
   :group 'showcss
   :type 'boolean)
+
+;; add custom:
+;;   turn of automatic scanning
+;;   set mode display buffer is in
+;;   don't display file name in header
+;;   don't display file path in header
+;;   don't display buttons in header
 
 (defface showcss/region-face
  '((t (:background "grey50")))
@@ -125,6 +133,9 @@ to view"
 '((t (:foreground "grey20")))
 "Face for headers"
 :group 'showcss)
+
+;; add face
+;;   make source buffer region a seperate face
 
 
 (defvar showcss/css-buffer nil
@@ -203,47 +214,112 @@ Eg:
           csslist)))
 
 
-(defun showcss/what-elements()
-  "Get a list of elements from the current tag.
-It returns the tag name, id and class lists.
-For example:
-\(\"div\" (\"id\" . \"someid\") (class \"dog\" \"cat\"))"
+(defun showcss/parse-html()
+  "Parse the html file with dom.el"
+  (setq showcss/parents nil)
   (save-excursion
-    (re-search-backward "\\(>\\|</\\|<!\\|<\\)" nil t)
-    (cond
-     ;; > end of tag - not in a tag
-     ((string= ">" (match-string 0))
-      nil)
-     ;; </ in a closing tag
-     ((string= "</" (match-string 0))
-      nil)
-     ;; <! in a comment
-     ((string= "<!" (match-string 0))
-      nil)
-     ;; < in an opening tag
-     ((string= "<" (match-string 0))
-      (let ((tag-start (match-end 1))
-            (tag-end (search-forward ">"))
-            (tag-name nil)
-            (tag-id nil)
-            (tag-class nil))
-        ;; tag name
-        (goto-char tag-start)
-        (re-search-forward "[^ >]*" tag-end t nil)
-        (setq tag-name (match-string-no-properties 0))
-        ;; id
-        (goto-char tag-start)
-        (if (re-search-forward "id ?= ?\"\\(.*?\\)\"" tag-end t nil)
-            (setq tag-id (match-string-no-properties 1)))
-        ;; class
-        (goto-char tag-start)
-        (if (re-search-forward "class ?= ?\"\\(.*?\\)\"" tag-end t nil)
-            (progn
-              (setq tag-class (match-string-no-properties 1))
-              (setq tag-class (s-split " " tag-class t))))
+    (search-backward "<" nil t)
+    (forward-char)
+    ;; if not looking at a / or ! (comment or closing tag)
+    (unless (looking-at "\\(/\\|!\\)")
+      (backward-char)
+      (let ((bookmark-tag (format-time-string "<showcss unique=\"%s%N\" />")))
+        (insert bookmark-tag)  ;TODO: this needs to not affect undo
 
-        ;; return tag info
-        (list tag-name (cons 'id tag-id) (cons 'class tag-class)))))))
+        ;; todo: test for error, xml-parse-region needs a valid document
+        (let* ((dom-doc nil)
+               (bookmark nil)
+               (not-tag t)
+               (node bookmark))
+
+          (setq dom-doc
+                (dom-make-document-from-xml
+                 (car
+                  (condition-case nil   ; does not work?
+                      (xml-parse-region (point-min) (point-max))
+                    (message "Not valid document")))))
+
+          (setq bookmark
+                (car (dom-document-get-elements-by-tag-name
+                      dom-doc 'showcss)))
+
+          (search-backward bookmark-tag)
+          (delete-char (length bookmark-tag))
+          ;; Find the next sibling tag from the inserted
+          ;; <showcss-... /> bookmark-tag, since that is the
+          ;; one we really want, skipping text tags.
+          (while not-tag
+            (setq node (dom-node-next-sibling node))
+            (if (= (dom-node-type node) 1)
+                (progn
+                  (setq not-tag nil)
+                  (showcss/up-walk node)))))))))
+
+
+(defun showcss/up-walk(node)
+  "Walk up the parse tree and collect information about each tag"
+  (if (dom-node-p node)
+      (let* ((node-name (dom-node-name node))
+             (node-list (list node-name))
+             (attr-list '()))
+
+        (if (dom-node-has-attributes node)
+            (progn
+              (dolist (attr (dom-node-attributes node))
+                (let ((attr-name (dom-node-name attr))
+                      (attr-val (dom-node-value attr)))
+                  (if (string= attr-name "class")
+                      (setq attr-val (s-split " " attr-val t)))
+                  (setq node-list (cons (list attr-name attr-val) node-list))))))
+
+        (let ((rev-list (reverse node-list)))
+          (setq showcss/parents (cons rev-list showcss/parents))
+          (showcss/find-selectors rev-list))
+
+        (showcss/up-walk (dom-node-parent-node node)))))
+
+
+;;(defun showcss/what-elements()
+;;  "Get a list of elements from the current tag.
+;;It returns the tag name, id and class lists.
+;;For example:
+;;\(\"div\" (\"id\" . \"someid\") (class \"dog\" \"cat\"))"
+;;  (save-excursion
+;;    (re-search-backward "\\(>\\|</\\|<!\\|<\\)" nil t)
+;;    (cond
+;;     ;; > end of tag - not in a tag
+;;     ((string= ">" (match-string 0))
+;;      nil)
+;;     ;; </ in a closing tag
+;;     ((string= "</" (match-string 0))
+;;      nil)
+;;     ;; <! in a comment
+;;     ((string= "<!" (match-string 0))
+;;      nil)
+;;     ;; < in an opening tag
+;;     ((string= <showcss-1367876683835760000 />"<" (match-string 0))
+;;      (let ((tag-start (match-end 1))
+;;            (tag-end (search-forward ">"))
+;;            (tag-name nil)
+;;            (tag-id nil)
+;;            (tag-class nil))
+;;        ;; tag name
+;;        (goto-char tag-start)
+;;        (re-search-forward "[^ >]*" tag-end t nil)
+;;        (setq tag-name (match-string-no-properties 0))
+;;        ;; id
+;;        (goto-char tag-start)
+;;        (if (re-search-forward "id ?= ?\"\\(.*?\\)\"" tag-end t nil)
+;;            (setq tag-id (match-string-no-properties 1)))
+;;        ;; class
+;;        (goto-char tag-start)
+;;        (if (re-search-forward "class ?= ?\"\\(.*?\\)\"" tag-end t nil)
+;;            (progn
+;;              (setq tag-class (match-string-no-properties 1))
+;;              (setq tag-class (s-split " " tag-class t))))
+;;
+;;        ;; return tag info
+;;        (list tag-name (cons 'id tag-id) (cons 'class tag-class)))))))
 
 
 (defun showcss/find-selectors (elements)
@@ -261,7 +337,8 @@ of positions of matched selectors"
         ;;          (cons (showcss/get-points source-buffer 'tag tag-name)
         ;;                buffer-and-fragments)))
         (if tag-css
-            (mapcar (lambda (e)
+            ;; change ('class (dog cat)) to ('class dog cat)
+            (mapcar (lambda (e)         ;TODO: change to mapc or dolist
                       (setq buffer-and-fragments (cons e buffer-and-fragments)))
                     (showcss/get-points source-buffer 'class tag-css)))
         (if tag-id
@@ -356,15 +433,17 @@ eg: \"\\\\(\\\\.some_class\\\\)[ ,\\n{]\""
 
 (defun showcss/main()
   (interactive)
-  (let ((elements (showcss/what-elements)))
-    ;; if is a selector:
-    (if elements
-        (progn
-          (showcss/find-selectors elements))
-      ;; remove overlays
-      (set-buffer (get-buffer-create "Show CSS"))
-      (css-mode)
-      (bc/start nil))))
+  (showcss/parse-html))
+
+;;  (let ((elements (showcss/what-elements)))
+;;    ;; if is a selector:
+;;    (if elements
+;;        (progn
+;;          (showcss/find-selectors elements))
+;;      ;; remove overlays
+;;      (set-buffer (get-buffer-create "Show CSS"))
+;;      (css-mode)
+;;      (bc/start nil))))
 
 
 (defun showcss/timerfunc()
