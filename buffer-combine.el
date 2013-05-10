@@ -69,20 +69,24 @@ two optional flags readonly and hidden"
   (css-mode)
   (bc/remove-source-overlays)
   (let ((buffers-data '()))
+    (dolist (tag-filelist data)
     ;;for each file and its fragment positions:
-    (dolist (filelist data)
+      ;(with-current-buffer (car filelist) (remove-overlays))
+    (dolist (filelist tag-filelist)
       (let ((buffer (bc/load-file (car filelist) hidden)))
+
         ;;for each fragment position:
         (setq buffers-data
               (cons (bc/mark-fragments-in-source buffer (cdr filelist))
-                    buffers-data))))
+                    buffers-data)))))
     (setq bc/buffers-data buffers-data)
     (bc/build-display buffers-data))
   (display-buffer bc/this-buffer)
-  ;(switch-to-buffer-other-window bc/this-buffer)
-  ;(switch-to-buffer-other-window showcss/html-buffer)
 )
 
+
+;; rewrite so this function assumes a buffer
+;; only, instead of a buffer or file.
 (defun bc/load-file (file hidden)
   "Load the files from disk and if hidden is t,
 rename them with a space in front of the buffer title"
@@ -116,7 +120,7 @@ rename them with a space in front of the buffer title"
 (defun bc/mark-fragments-in-source(buffer fragments)
   "Iterate over all the fragments in one buffer"
   (set-buffer buffer)
-  (remove-overlays)
+  ;;(remove-overlays)
   (add-hook 'first-change-hook 'bc/set-modification-flag nil t)
   (add-hook 'after-save-hook 'bc/unset-modification-flag nil t)
 

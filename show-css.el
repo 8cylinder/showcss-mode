@@ -227,21 +227,12 @@ Eg:
         (insert bookmark-tag)  ;TODO: this needs to not affect undo
 
         ;; todo: test for error, xml-parse-region needs a valid document
-        (let* ((dom-doc nil)
-               (bookmark nil)
+        (let* ((dom-doc (dom-make-document-from-xml
+                         (car (xml-parse-region (point-min) (point-max)))))
+               (bookmark (car (dom-document-get-elements-by-tag-name
+                      dom-doc 'showcss)))
                (not-tag t)
                (node bookmark))
-
-          (setq dom-doc
-                (dom-make-document-from-xml
-                 (car
-                  (condition-case nil   ; does not work?
-                      (xml-parse-region (point-min) (point-max))
-                    (message "Not valid document")))))
-
-          (setq bookmark
-                (car (dom-document-get-elements-by-tag-name
-                      dom-doc 'showcss)))
 
           (search-backward bookmark-tag)
           (delete-char (length bookmark-tag))
@@ -253,7 +244,9 @@ Eg:
             (if (= (dom-node-type node) 1)
                 (progn
                   (setq not-tag nil)
-                  (showcss/up-walk node)))))))))
+                  (showcss/up-walk node)
+                  (showcss/find-selectors)
+                  ))))))))
 
 
 (defun showcss/up-walk(node)
@@ -269,93 +262,67 @@ Eg:
                 (let ((attr-name (dom-node-name attr))
                       (attr-val (dom-node-value attr)))
                   (if (string= attr-name "class")
-                      (setq attr-val (s-split " " attr-val t)))
-                  (setq node-list (cons (list attr-name attr-val) node-list))))))
+                      (setq node-list
+                            (cons (cons attr-name
+                                        (s-split " " attr-val t))
+                                  node-list))
+                    (setq node-list (cons (list attr-name attr-val) node-list)))))))
 
         (let ((rev-list (reverse node-list)))
           (setq showcss/parents (cons rev-list showcss/parents))
-          (showcss/find-selectors rev-list))
+          ;;(showcss/find-selectors rev-list)
+          )
 
-        (showcss/up-walk (dom-node-parent-node node)))))
-
-
-;;(defun showcss/what-elements()
-;;  "Get a list of elements from the current tag.
-;;It returns the tag name, id and class lists.
-;;For example:
-;;\(\"div\" (\"id\" . \"someid\") (class \"dog\" \"cat\"))"
-;;  (save-excursion
-;;    (re-search-backward "\\(>\\|</\\|<!\\|<\\)" nil t)
-;;    (cond
-;;     ;; > end of tag - not in a tag
-;;     ((string= ">" (match-string 0))
-;;      nil)
-;;     ;; </ in a closing tag
-;;     ((string= "</" (match-string 0))
-;;      nil)
-;;     ;; <! in a comment
-;;     ((string= "<!" (match-string 0))
-;;      nil)
-;;     ;; < in an opening tag
-;;     ((string= <showcss-1367876683835760000 />"<" (match-string 0))
-;;      (let ((tag-start (match-end 1))
-;;            (tag-end (search-forward ">"))
-;;            (tag-name nil)
-;;            (tag-id nil)
-;;            (tag-class nil))
-;;        ;; tag name
-;;        (goto-char tag-start)
-;;        (re-search-forward "[^ >]*" tag-end t nil)
-;;        (setq tag-name (match-string-no-properties 0))
-;;        ;; id
-;;        (goto-char tag-start)
-;;        (if (re-search-forward "id ?= ?\"\\(.*?\\)\"" tag-end t nil)
-;;            (setq tag-id (match-string-no-properties 1)))
-;;        ;; class
-;;        (goto-char tag-start)
-;;        (if (re-search-forward "class ?= ?\"\\(.*?\\)\"" tag-end t nil)
-;;            (progn
-;;              (setq tag-class (match-string-no-properties 1))
-;;              (setq tag-class (s-split " " tag-class t))))
-;;
-;;        ;; return tag info
-;;        (list tag-name (cons 'id tag-id) (cons 'class tag-class)))))))
+        (showcss/up-walk (dom-node-parent-node node))
+        )))
 
 
-(defun showcss/find-selectors (elements)
+(defun showcss/find-selectors ()
   "For each source buffer, get a list
 of positions of matched selectors"
-  (let ((tag-name (car elements))
-        (tag-id (cdr (nth 1 elements)))
-        (tag-css (cdr (nth 2 elements)))
-        (data nil)
+  (let ((all-elements nil)
         (html-buffer (current-buffer)))
-    (dolist (source-buffer showcss/css-buffer)
-      (let ((buffer-and-fragments ()))
-        ;;(if tag-name
-        ;;    (setq buffer-and-fragments
-        ;;          (cons (showcss/get-points source-buffer 'tag tag-name)
-        ;;                buffer-and-fragments)))
-        (if tag-css
-            ;; change ('class (dog cat)) to ('class dog cat)
-            (mapcar (lambda (e)         ;TODO: change to mapc or dolist
-                      (setq buffer-and-fragments (cons e buffer-and-fragments)))
-                    (showcss/get-points source-buffer 'class tag-css)))
-        (if tag-id
-            (setq buffer-and-fragments
-                  (cons (car (showcss/get-points source-buffer 'id tag-id))
-                        buffer-and-fragments)))
+    (dolist (elements (reverse showcss/parents))
+      (let ((tag-name (car elements))
+            (tag-id nil)
+            (tag-class nil)
+            (data nil))
 
-        (if (car buffer-and-fragments)
-            (progn
-              (setq buffer-and-fragments
-                    (cons source-buffer
-                          buffer-and-fragments))
-              (setq data (cons buffer-and-fragments data)))
-          (setq buffer-and-fragments nil))
+        (dolist (attribs (cdr elements))
+          (cond ((string= (car attribs) "id")
+                 (setq tag-id (nth 1 attribs)))
+                ((string= (car attribs) "class")
+                 (setq tag-class (cdr attribs)))))
+
+        (dolist (source-buffer showcss/css-buffer)
+          (let ((buffer-and-fragments ()))
+            ;;(if tag-name
+            ;;    (setq buffer-and-fragments
+            ;;          (cons (showcss/get-points source-buffer 'tag tag-name)
+            ;;                buffer-and-fragments)))
+            (if tag-class
+                (mapcar (lambda (e)         ;TODO: change to mapc or dolist
+                          (setq buffer-and-fragments (cons e buffer-and-fragments)))
+                        (showcss/get-points source-buffer 'class tag-class)))
+            (if tag-id
+                (setq buffer-and-fragments
+                      (cons (car (showcss/get-points source-buffer 'id tag-id))
+                            buffer-and-fragments)))
+
+            (if (car buffer-and-fragments)
+                (progn
+                  (setq buffer-and-fragments
+                        (cons source-buffer
+                              buffer-and-fragments))
+                  (setq data (cons buffer-and-fragments data)))
+              (setq buffer-and-fragments nil))
+            ))
+        (unless (null data)
+          (setq all-elements (cons data all-elements)))
         ))
-    (showcss/display-info data html-buffer)
-))
+
+    (showcss/display-info all-elements html-buffer)
+  ))
 
 
 (defun showcss/get-points(source-buffer type value)
@@ -426,7 +393,7 @@ eg: \"\\\\(\\\\.some_class\\\\)[ ,\\n{]\""
   (let ((display-buffer (get-buffer-create "Show CSS")))
     (set-buffer display-buffer)
     (switch-to-buffer-other-window display-buffer)
-    (css-mode)             ;should this be call each time?
+    (css-mode)             ;should this be called each time?
     (bc/start data)
     (switch-to-buffer-other-window html-buffer)))
 
@@ -435,15 +402,17 @@ eg: \"\\\\(\\\\.some_class\\\\)[ ,\\n{]\""
   (interactive)
   (showcss/parse-html))
 
-;;  (let ((elements (showcss/what-elements)))
-;;    ;; if is a selector:
-;;    (if elements
-;;        (progn
-;;          (showcss/find-selectors elements))
-;;      ;; remove overlays
-;;      (set-buffer (get-buffer-create "Show CSS"))
-;;      (css-mode)
-;;      (bc/start nil))))
+(defun Xshowcss/main()
+  (interactive)
+  (let ((elements (showcss/what-elements)))
+    ;; if is a selector:
+    (if elements
+        (progn
+          (showcss/find-selectors elements))
+      ;; remove overlays
+      (set-buffer (get-buffer-create "Show CSS"))
+      (css-mode)
+      (bc/start nil))))
 
 
 (defun showcss/timerfunc()
