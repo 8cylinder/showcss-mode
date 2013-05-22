@@ -60,13 +60,13 @@
 ;(make-local-variable bc/this-buffer)
 
 
-(defun* bc/start (data &key (readonly nil) (hidden nil))
+(defun* bc/start (data parents &key (readonly nil) (hidden nil))
   "Recieve and parse the data
 two optional flags readonly and hidden"
   (set-buffer (get-buffer-create "Show CSS"))
   (add-hook 'kill-buffer-hook 'bc/remove-source-overlays nil t)
   (setq bc/this-buffer (current-buffer))
-  (css-mode)
+  ;(eval (read (format "(%s)" showcss/display-buffer-mode)))
   (bc/remove-source-overlays)
   (let ((buffers-data '()))
     (dolist (tag-filelist data)
@@ -80,7 +80,7 @@ two optional flags readonly and hidden"
               (cons (bc/mark-fragments-in-source buffer (cdr filelist))
                     buffers-data)))))
     (setq bc/buffers-data buffers-data)
-    (bc/build-display buffers-data))
+    (bc/build-display buffers-data parents))
   (display-buffer bc/this-buffer)
 )
 
@@ -161,7 +161,7 @@ rename them with a space in front of the buffer title"
 (defun bc/mark-fragment-in-source (buffer start end)
   "Mark a fragment in a buffer with an overlay"
   (let ((ov (make-overlay start end)))
-    (overlay-put ov 'face 'showcss/region-face)
+    (overlay-put ov 'face 'showcss/source-region-face)
     (overlay-put ov 'before-string
                  "Changes made in the following region will be
 |overwritten by edits made in the Show CSS buffer:\n")
@@ -172,62 +172,81 @@ rename them with a space in front of the buffer title"
     ov))
 
 
-(defun bc/build-display(buffers-data)
+(defun bc/build-display(buffers-data parents)
   "Build the display for each fragment"
   (set-buffer bc/this-buffer)
   (remove-overlays)
   (erase-buffer)
+
+  ;; Insert breadcrumb
+  (insert (showcss/build-breadcrumb parents))
+
+  ;; Insert file names
+  (let ((dupe-list nil))
+    (dolist (file-and-overlays buffers-data)
+      (let* ((buf (car file-and-overlays))
+             (header-ov nil)
+             (header-path-ov nil)
+             (path (file-name-directory (buffer-file-name buf)))
+             (save-point nil))
+
+        (unless (memq (buffer-file-name buf) dupe-list)
+
+          (insert (format "\n%s" (file-name-nondirectory
+                                  (buffer-file-name buf))))
+          (setq header-ov (make-overlay
+                           (progn (move-beginning-of-line nil) (point))
+                           (progn (move-end-of-line nil) (point)) nil nil nil))
+          (overlay-put header-ov 'face 'showcss/header-face)
+          ;; this is here so it can be easily found
+          (overlay-put header-ov 'filename (file-name-nondirectory
+                                            (buffer-file-name buf)))
+          (insert "  ")
+          ;; view button
+          (insert-text-button
+           "View"
+           'action (lambda (button)
+                     (switch-to-buffer
+                      (button-get button 'source-buffer) nil t))
+           'source-buffer buf
+           'follow-link t
+           'help-echo (format "Switch to %s"
+                              (file-name-nondirectory (buffer-file-name buf))))
+          (insert "  ")
+          ;; save button
+          (insert-text-button
+           "Save"
+           'action (lambda (button)
+                     (set-buffer (button-get button 'source-buffer)) (save-buffer))
+           'source-buffer buf
+           'follow-link t
+           'help-echo (format "Save %s"
+                              (file-name-nondirectory (buffer-file-name buf))))
+          (insert "\n")
+          ;; insert file path
+          (setq save-point (point))
+          (insert path)
+          (setq header-path-ov (make-overlay save-point (point)))
+          (overlay-put header-path-ov 'face 'showcss/header-filepath-face)
+
+          ;(insert "\n"))
+
+        ;; add the file name to the duplicate list
+        (setq dupe-list (cons (buffer-file-name buf) dupe-list))
+        ))))
+  (insert "\n")
+
+  ;; clear duplicate list so it can be used with the fragments
+  (setq dupe-list nil)
+
+  ;; Insert css
   (dolist (file-and-overlays buffers-data)
-    (let* ((buf (car file-and-overlays))
-          (header-ov nil)
-          (header-path-ov nil)
-          (path (file-name-directory (buffer-file-name buf)))
-          (save-point nil)
-          )
-      ;; insert header
-      (insert (format "\n%s" (file-name-nondirectory
-                              (buffer-file-name buf))))
-      (setq header-ov (make-overlay
-                       (progn (move-beginning-of-line nil) (point))
-                       (progn (move-end-of-line nil) (point)) nil nil nil))
-      (overlay-put header-ov 'face 'showcss/header-face)
-      ;; this is here so it can be easily found
-      (overlay-put header-ov 'filename (file-name-nondirectory
-                                        (buffer-file-name buf)))
-      (insert "  ")
-      ;; view button
-      (insert-text-button
-       "View"
-       'action (lambda (button)
-                 (switch-to-buffer
-                  (button-get button 'source-buffer) nil t))
-       'source-buffer buf
-       'follow-link t
-       'help-echo (format "Switch to %s"
-                    (file-name-nondirectory (buffer-file-name buf))))
-      (insert "  ")
-      ;; save button
-      (insert-text-button
-       "Save"
-       'action (lambda (button)
-                 (set-buffer (button-get button 'source-buffer)) (save-buffer))
-       'source-buffer buf
-       'follow-link t
-       'help-echo (format "Save %s"
-                    (file-name-nondirectory (buffer-file-name buf))))
-      (insert "\n")
-      ;; insert file path
-      (setq save-point (point))
-      (insert path)
-      (setq header-path-ov (make-overlay save-point (point)))
-      (overlay-put header-path-ov 'face 'showcss/header-filepath-face)
-
-      (insert "\n")
-
+    (let* ((buf (car file-and-overlays)))
       (dolist (source-ov (cdr file-and-overlays))
         (let* ((source-start (overlay-start source-ov))
                (source-end (overlay-end source-ov))
                (display-length (- source-end source-start)))
+          ;;!!!!!!!!!(unless (memq source-start
           ;; insert css fragments
           (insert-buffer-substring-no-properties
            buf
@@ -297,7 +316,14 @@ linked overlay in the source buffer"
             (remove-hook 'first-change-hook 'bc/set-modification-flag)
             (remove-hook 'after-save-hook 'bc/unset-modification-flag)
             (dolist (ov (cdr buffer-and-fragments))
-              (delete-overlay ov)))))))
+              (delete-overlay ov))
+
+            ;; temporary only.  This will delete ALL overlays
+            ;; even if set from another mode.
+            (dolist (ov (overlays-in (point-min) (point-max)))
+              (delete-overlay ov))
+
+            )))))
 
 
 (defvar buffer-combine-mode-map
