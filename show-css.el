@@ -256,16 +256,20 @@ Eg:
                  (looking-back ">")))
         (progn
           (backward-char)
-          (let ((bookmark-tag (format-time-string "<showcss unique=\"%s%N\" />")))
+          (let ((bookmark-tag "<showcss />"))
             (insert bookmark-tag)  ;TODO: this needs to not affect undo
 
-            ;; todo: test for error, xml-parse-region needs a valid document
-            (let* ((dom-doc (dom-make-document-from-xml
-                             (car (xml-parse-region (point-min) (point-max)))))
-                   (bookmark (car (dom-document-get-elements-by-tag-name
-                                   dom-doc 'showcss)))
-                   (not-tag t)
-                   (node bookmark))
+            (let* ((dom-doc nil)
+                  (node nil)
+                  (not-tag t))
+
+              (condition-case nil
+                  (progn
+                  (setq dom-doc (dom-make-document-from-xml
+                                 (car (xml-parse-region (point-min) (point-max)))))
+                  (setq node (car (dom-document-get-elements-by-tag-name
+                                   dom-doc 'showcss))))
+                (error (message "Malformed document")))
 
               (search-backward bookmark-tag)
               (delete-char (length bookmark-tag))
@@ -273,7 +277,9 @@ Eg:
               ;; <showcss-... /> bookmark-tag, since that is the
               ;; one we really want, skipping text tags.
               (while not-tag
-                (setq node (dom-node-next-sibling node))
+                (condition-case nil
+                    (setq node (dom-node-next-sibling node))
+                  (error nil))
                 (if (= (dom-node-type node) 1)
                     (progn
                       (setq not-tag nil)
