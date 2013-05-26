@@ -66,23 +66,20 @@ two optional flags readonly and hidden"
   (set-buffer (get-buffer-create "Show CSS"))
   (add-hook 'kill-buffer-hook 'bc/remove-source-overlays nil t)
   (setq bc/this-buffer (current-buffer))
-  ;(eval (read (format "(%s)" showcss/display-buffer-mode)))
+  (eval (read (format "(%s)" showcss/display-buffer-mode)))
   (bc/remove-source-overlays)
   (let ((buffers-data '()))
-    (dolist (tag-filelist data)
-    ;;for each file and its fragment positions:
-      ;(with-current-buffer (car filelist) (remove-overlays))
-    (dolist (filelist tag-filelist)
+    (dolist (filelist data)
+      ;;for each file and its fragment positions:
       (let ((buffer (bc/load-file (car filelist) hidden)))
 
         ;;for each fragment position:
         (setq buffers-data
               (cons (bc/mark-fragments-in-source buffer (cdr filelist))
-                    buffers-data)))))
+                    buffers-data))));)
     (setq bc/buffers-data buffers-data)
     (bc/build-display buffers-data parents))
-  (display-buffer bc/this-buffer)
-)
+  (display-buffer bc/this-buffer))
 
 
 ;; rewrite so this function assumes a buffer
@@ -229,42 +226,40 @@ rename them with a space in front of the buffer title"
           (setq header-path-ov (make-overlay save-point (point)))
           (overlay-put header-path-ov 'face 'showcss/header-filepath-face)
 
-          ;(insert "\n"))
+                                        ;(insert "\n"))
 
-        ;; add the file name to the duplicate list
-        (setq dupe-list (cons (buffer-file-name buf) dupe-list))
-        ))))
-  (insert "\n")
+          ;; add the file name to the duplicate list
+          (setq dupe-list (cons (buffer-file-name buf) dupe-list))
+          )
 
-  ;; clear duplicate list so it can be used with the fragments
-  (setq dupe-list nil)
+        (insert "\n")
 
-  ;; Insert css
-  (dolist (file-and-overlays buffers-data)
-    (let* ((buf (car file-and-overlays)))
-      (dolist (source-ov (cdr file-and-overlays))
-        (let* ((source-start (overlay-start source-ov))
-               (source-end (overlay-end source-ov))
-               (display-length (- source-end source-start)))
-          ;;!!!!!!!!!(unless (memq source-start
-          ;; insert css fragments
-          (insert-buffer-substring-no-properties
-           buf
-           (overlay-start source-ov)
-           (overlay-end source-ov))
-          (let ((display-ov (make-overlay
-                             (point) (- (point) display-length) nil nil nil)))
-            (overlay-put display-ov 'before-string "\n")
-            (overlay-put display-ov 'modification-hooks
-                         '(bc/send-back-to-source))
-            (overlay-put display-ov 'source-overlay source-ov)
-            (overlay-put display-ov 'face 'showcss/region-face)
-            (overlay-put display-ov 'line-prefix " ")
-            ;; if the fragment doesn't end in a newline, add one to the display
-            (unless (string= (string (char-before (overlay-end display-ov))) "\n")
+        ;; clear duplicate list so it can be used with the fragments
+        (setq dupe-list nil)
+
+        ;; Insert css
+        (dolist (source-ov (cdr file-and-overlays))
+          (let* ((source-start (overlay-start source-ov))
+                 (source-end (overlay-end source-ov))
+                 (display-length (- source-end source-start)))
+            ;; insert css fragments
+            (insert-buffer-substring-no-properties
+             buf
+             (overlay-start source-ov)
+             (overlay-end source-ov))
+            (let ((display-ov (make-overlay
+                               (point) (- (point) display-length) nil nil nil)))
+              (overlay-put display-ov 'before-string "\n")
+              (overlay-put display-ov 'modification-hooks
+                           '(bc/send-back-to-source))
+              (overlay-put display-ov 'source-overlay source-ov)
+              (overlay-put display-ov 'face 'showcss/region-face)
+              (overlay-put display-ov 'line-prefix " ")
+              ;; if the fragment doesn't end in a newline, add one to the display
+              (unless (string= (string (char-before (overlay-end display-ov))) "\n")
                 (insert "\n")))
-          ))))
-  (goto-char (point-min)))
+            )))))
+        (goto-char (point-min)))
 
 
 (defun bc/send-back-to-source(ov &optional flag &rest rv)

@@ -118,6 +118,12 @@ css-mode, but it could be any other mode"
   :group 'showcss
   :type 'string)
 
+(defcustom showcss/hide-source-buffers nil
+  "Add a space to the front of the buffer name of all
+the source files so they don't clutter up the file list"
+  :group 'showcss
+  :type 'boolean)
+
 ;; add custom:
 ;;   turn of automatic scanning
 ;;   set mode display buffer is in
@@ -221,6 +227,8 @@ Eg:
               (goto-char tag-end)))
 
           ;; get @imports
+          ;; todo: make sure this is in a <style> tag and not
+          ;; part of some example code
           (goto-char (point-min))
           (while (re-search-forward "@import .*?\"\\(.*?\\)\"" nil t)
             (setq csslist (cons (substring-no-properties
@@ -265,10 +273,10 @@ Eg:
 
               (condition-case nil
                   (progn
-                  (setq dom-doc (dom-make-document-from-xml
-                                 (car (xml-parse-region (point-min) (point-max)))))
-                  (setq node (car (dom-document-get-elements-by-tag-name
-                                   dom-doc 'showcss))))
+                    (setq dom-doc (dom-make-document-from-xml
+                                   (libxml-parse-html-region (point-min) (point-max))))
+                    (setq node (car (dom-document-get-elements-by-tag-name
+                                     dom-doc 'showcss))))
                 (error (message "Malformed document")))
 
               (search-backward bookmark-tag)
@@ -324,24 +332,24 @@ Eg:
 of positions of matched selectors"
   (let ((all-elements nil)
         (html-buffer (current-buffer)))
-    ;; for each tag
-    (dolist (elements (reverse showcss/parents))
-      (let ((tag-name (car elements))
-            (tag-id nil)
-            (tag-class nil)
-            (data nil))
+    ;; for each buffer
+    (dolist (source-buffer showcss/css-buffer)
+      (let ((buffer-and-fragments (list source-buffer)))
+      ;; for each tag
+      (dolist (elements (reverse showcss/parents))
+        (let ((tag-name (car elements))
+              (tag-id nil)
+              (tag-class nil)
+              (data nil))
 
-        ;; make sure each class and id is associated
-        ;; with the right list
-        (dolist (attribs (cdr elements))
-          (cond ((string= (car attribs) "id")
-                 (setq tag-id (nth 1 attribs)))
-                ((string= (car attribs) "class")
-                 (setq tag-class (cdr attribs)))))
+          ;; make sure each class and id is associated
+          ;; with the right list
+          (dolist (attribs (cdr elements))
+            (cond ((string= (car attribs) "id")
+                   (setq tag-id (nth 1 attribs)))
+                  ((string= (car attribs) "class")
+                   (setq tag-class (cdr attribs)))))
 
-        ;; for each buffer
-        (dolist (source-buffer showcss/css-buffer)
-          (let ((buffer-and-fragments ()))
             (if tag-name
                 (setq buffer-and-fragments
                       (append
@@ -358,17 +366,11 @@ of positions of matched selectors"
                        (showcss/get-points source-buffer 'id tag-id)
                        buffer-and-fragments)))
 
-            (if (car buffer-and-fragments)
-                (progn
-                  (setq buffer-and-fragments
-                        (cons source-buffer
-                              buffer-and-fragments))
-                  (setq data (cons buffer-and-fragments data)))
-              (setq buffer-and-fragments nil))
             ))
-        (unless (null data)
-          (setq all-elements (cons data all-elements)))
-        ))
+      (setq all-elements
+            (cons
+             (reverse
+              (delete-dups buffer-and-fragments)) all-elements))))
 
     (showcss/display-info all-elements html-buffer)
   ))
@@ -384,11 +386,16 @@ matching selector (and its declarations)"
     ;(set-buffer source-buffer)
     ;(save-excursion
     (with-current-buffer source-buffer
+      ;(switch-to-buffer-other-window source-buffer)
       (goto-char (point-min))
       (while (showcss/search search-string)
-        (showcss/search "\\(}\\|\n\\)" 'backwards) ; backwards for a \n or }
-        (if (looking-at "}") (forward-char))       ; forwards over }
-        (while (looking-at "\n") (forward-char))   ; and skip over blank lines
+        ;(showcss/search "\\(}\\|\n\\)" 'backwards) ; backwards for a \n or }
+        (if (showcss/search "}" 'backwards) ; backwards for a \n or }
+            (progn
+              (if (looking-at "}") (forward-char))       ; forwards over }
+              (while (looking-at "\n") (forward-char))   ; and skip over blank lines
+              )
+          (goto-char (point-min)))
         (setq start-point (point))                 ; set point
         (showcss/search "}")
         (if (looking-at "\n")
@@ -422,11 +429,11 @@ and create a regex to be used for searching in the css files.
 eg: \"\\\\(\\\\.some_class\\\\)[ ,\\n{]\""
   (let ((full-selector nil))
     (cond ((eq type 'class)
-           (setq full-selector (concat "\\(\\." (s-join "\\>\\|\\." value) "\\>\\)")))
+           (setq full-selector (concat "\\(\\." (s-join "\\>\\|\\." value) "\\)[^-_[:alpha:]]")))
           ((eq type 'id)
-           (setq full-selector (format "#%s\\>" value)))
+           (setq full-selector (format "#%s\\>[^-_[:alpha:]]" value)))
           ((eq type 'tag)
-           (setq full-selector (format "[^.#]%s[ ,{]" value)))
+           (setq full-selector (format "\\b%s\\b" value)))
           (t
            (error (format "Wrong type of selector: %s" type))))
     (if full-selector
@@ -479,7 +486,7 @@ html > body > div#id.class > div.class.class > ul > li"
     (set-buffer display-buffer)
     (switch-to-buffer-other-window display-buffer)
     ;(css-mode)             ;should this be called each time?
-    (bc/start data parents)
+    (bc/start data parents :hidden showcss/hide-source-buffers)
     (switch-to-buffer-other-window html-buffer)))
 
 
