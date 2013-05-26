@@ -131,41 +131,45 @@ the source files so they don't clutter up the file list"
 ;;   don't display file path in header
 ;;   don't display buttons in header
 
+(defgroup showcss-faces nil
+  "Customize showcss faces"
+  :prefix "showcss/"
+  :group 'showcss)
 
 (defface showcss/region-face
   '((t (:background "grey50")))
   "Highlight the full selector"
-  :group 'showcss)
+  :group 'showcss-faces)
 
 (defface showcss/source-region-face
   '((t (:foreground "grey60" :background "grey40")))
   "Highlight the full selector in the source css buffer"
-  :group 'showcss)
+  :group 'showcss-faces)
 
 (defface showcss/breadcrumb-id-and-class-face
   '((t (:foreground "black" :background "white")))
   "Highlight the breadcrumb tags"
-  :group 'showcss)
+  :group 'showcss-faces)
 
 (defface showcss/breadcrumb-tag-face
   '((t (:foreground "black" :background "white")))
   "Highlight the breadcrumb tags"
-  :group 'showcss)
+  :group 'showcss-faces)
 
 (defface showcss/breadcrumb-seperator-face
   '((t (:foreground "grey50")))
   "Highlight the breadcrumb seperater"
-  :group 'showcss)
+  :group 'showcss-faces)
 
 (defface showcss/header-face
   '((t (:background "grey50")))
   "Face for headers"
-  :group 'showcss)
+  :group 'showcss-faces)
 
 (defface showcss/header-filepath-face
   '((t (:foreground "grey20")))
   "Face for headers"
-  :group 'showcss)
+  :group 'showcss-faces)
 
 
 (defvar showcss/css-buffer nil
@@ -268,8 +272,8 @@ Eg:
             (insert bookmark-tag)  ;TODO: this needs to not affect undo
 
             (let* ((dom-doc nil)
-                  (node nil)
-                  (not-tag t))
+                   (node nil)
+                   (not-tag t))
 
               (condition-case nil
                   (progn
@@ -335,20 +339,20 @@ of positions of matched selectors"
     ;; for each buffer
     (dolist (source-buffer showcss/css-buffer)
       (let ((buffer-and-fragments (list source-buffer)))
-      ;; for each tag
-      (dolist (elements (reverse showcss/parents))
-        (let ((tag-name (car elements))
-              (tag-id nil)
-              (tag-class nil)
-              (data nil))
+        ;; for each tag
+        (dolist (elements (reverse showcss/parents))
+          (let ((tag-name (car elements))
+                (tag-id nil)
+                (tag-class nil)
+                (data nil))
 
-          ;; make sure each class and id is associated
-          ;; with the right list
-          (dolist (attribs (cdr elements))
-            (cond ((string= (car attribs) "id")
-                   (setq tag-id (nth 1 attribs)))
-                  ((string= (car attribs) "class")
-                   (setq tag-class (cdr attribs)))))
+            ;; make sure each class and id is associated
+            ;; with the right list
+            (dolist (attribs (cdr elements))
+              (cond ((string= (car attribs) "id")
+                     (setq tag-id (nth 1 attribs)))
+                    ((string= (car attribs) "class")
+                     (setq tag-class (cdr attribs)))))
 
             (if tag-name
                 (setq buffer-and-fragments
@@ -364,16 +368,14 @@ of positions of matched selectors"
                 (setq buffer-and-fragments
                       (append
                        (showcss/get-points source-buffer 'id tag-id)
-                       buffer-and-fragments)))
-
-            ))
-      (setq all-elements
-            (cons
-             (reverse
-              (delete-dups buffer-and-fragments)) all-elements))))
+                       buffer-and-fragments)))))
+        (setq all-elements
+              (cons
+               (reverse
+                (delete-dups buffer-and-fragments)) all-elements))))
 
     (showcss/display-info all-elements html-buffer)
-  ))
+    ))
 
 
 (defun showcss/get-points(source-buffer type value)
@@ -383,27 +385,38 @@ matching selector (and its declarations)"
         (locations ())
         (start-point nil)
         (end-point nil))
-    ;(set-buffer source-buffer)
-    ;(save-excursion
-    (with-current-buffer source-buffer
-      ;(switch-to-buffer-other-window source-buffer)
-      (goto-char (point-min))
-      (while (showcss/search search-string)
-        ;(showcss/search "\\(}\\|\n\\)" 'backwards) ; backwards for a \n or }
-        (if (showcss/search "}" 'backwards) ; backwards for a \n or }
-            (progn
-              (if (looking-at "}") (forward-char))       ; forwards over }
-              (while (looking-at "\n") (forward-char))   ; and skip over blank lines
-              )
-          (goto-char (point-min)))
-        (setq start-point (point))                 ; set point
-        (showcss/search "}")
-        (if (looking-at "\n")
-            (forward-char))
-        (setq end-point (point))
+    (save-excursion
+      (with-current-buffer source-buffer
+        (goto-char (point-min))
+        (while (showcss/search search-string)
+          (if (showcss/search "}" 'backwards)
+              (progn
+                (if (looking-at "}") (forward-char))     ; forwards over }
+                (while (looking-at "\n") (forward-char))); and skip over blank lines
+            (goto-char (point-min)))    ; if on first line of file
+          (setq start-point (point))    ; set point
+          (showcss/search "{")
+          (showcss/test-selector
+           (buffer-substring-no-properties start-point (- (point) 1)) type value)
+          (showcss/search "}")
+          (if (looking-at "\n")
+              (forward-char))
+          (setq end-point (point))
 
-        (setq locations (cons (list start-point end-point) locations))))
+          (setq locations (cons (list start-point end-point) locations)))))
     locations))
+
+
+(defun showcss/test-selector(all-selectors type value)
+  "Test if the current selector applies to the current tag"
+  (let ((selectors (s-split "," all-selectors)))
+    (dolist (selector selectors)
+      ;; tag tag
+      ;; tag.class
+      ;; tag#id
+      ))
+  t
+)
 
 
 (defun showcss/search(regexp &optional backwards)
