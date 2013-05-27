@@ -323,9 +323,7 @@ Eg:
                     (setq node-list (cons (list attr-name attr-val) node-list)))))))
 
         (let ((rev-list (reverse node-list)))
-          (setq showcss/parents (cons rev-list showcss/parents))
-          ;;(showcss/find-selectors rev-list)
-          )
+          (setq showcss/parents (cons rev-list showcss/parents)))
 
         (showcss/up-walk (dom-node-parent-node node))
         )))
@@ -384,7 +382,9 @@ matching selector (and its declarations)"
   (let ((search-string (showcss/build-selector type value))
         (locations ())
         (start-point nil)
-        (end-point nil))
+        (end-point nil)
+        ;;so this can be passed on to showcss/test-selector:
+        (origin-tag (car (reverse showcss/parents))))
     (save-excursion
       (with-current-buffer source-buffer
         (goto-char (point-min))
@@ -397,7 +397,7 @@ matching selector (and its declarations)"
           (setq start-point (point))    ; set point
           (showcss/search "{")
           (showcss/test-selector
-           (buffer-substring-no-properties start-point (- (point) 1)) type value)
+           (buffer-substring-no-properties start-point (- (point) 1)) origin-tag type value)
           (showcss/search "}")
           (if (looking-at "\n")
               (forward-char))
@@ -406,14 +406,25 @@ matching selector (and its declarations)"
           (setq locations (cons (list start-point end-point) locations)))))
     locations))
 
-
-(defun showcss/test-selector(all-selectors type value)
+(setq showcss/selector-list-temp)
+(defun showcss/test-selector(found-selectors origin-tag type value)
   "Test if the current selector applies to the current tag"
-  (let ((selectors (s-split "," all-selectors)))
+  (let ((selectors (mapcar 's-trim (s-split "," found-selectors)))
+        (tag-name)
+        (tag-id)
+        (tag-class))
     (dolist (selector selectors)
-      ;; tag tag
+      (setq showcss/selector-list-temp (cons selector showcss/selector-list-temp))
+      ;; searched for: div id:#X class:.XX
+      ;; *
+      ;; something *
+      ;; x y             div ul{} p div{}
+      ;; x>y
+      ;; .class
       ;; tag.class
+      ;; #id
       ;; tag#id
+      ;; x:nth-child(n)
       ))
   t
 )
