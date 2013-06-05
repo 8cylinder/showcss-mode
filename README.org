@@ -9,11 +9,56 @@ Show CSS is a minor mode for emacs.
 With showcss-mode turned on, as you navigate around an HTML file the
 matching css for that element will be displayed in another buffer.
 
-** Current status
+All the css will display combined in one buffer and any edits made
+there will be sent back to the source css buffer.
 
-*Show css is undergoing major changes.*
+*** What dosn't work
 
-This is an unstable commit.  For a stable commit, go to
+All this is a fancy display for some regex searching.  What is does
+not do is any parsing of the found results to see if it actualy
+applies to the current tag.
+
+The way it works now, is that for each tag and for each parent tag, it
+searches all the associated css buffers for any matches for the tag
+name, id name, and any class names.
+
+
+** Features
+
+ - Displays a breadcrumb of the current elements parents
+ - Displays the css for the current element grouped by file
+ - Each field that shows the css is editable, and any changes are sent
+   back to the source file
+ - <ctrl> x s in the display buffer, saves the source buffers
+ - The default mode showcss uses is css-mode, but it can be set to any
+   other mode such as sass-mode if your working with sass files
+
+
+** What it does not do
+
+ - It won't support all selectors only most common
+ - It is not 100% accurate
+
+
+** Dependancies
+
+ - cl-lib
+ - dom      wiki
+ - s        https://github.com/magnars/s.el#functions
+
+
+** Compatability
+
+Emacs 24.2.1
+
+
+** Notes
+
+ - Would like to use chrome dev tools or phantomjs or firebug to get
+   css information but...
+
+
+** Older version
+
+The older version is at:
 [[https://github.com/smmcg/showcss-mode/tree/505d8374bc35e8e76ca7f14cce25dc9e6c9d9570]]
-
-The stable commit is the version that's distributed through [[http://marmalade-repo.org/][Marmalade]]

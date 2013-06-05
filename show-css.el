@@ -384,7 +384,8 @@ matching selector (and its declarations)"
         (start-point nil)
         (end-point nil)
         ;;so this can be passed on to showcss/test-selector:
-        (origin-tag (car (reverse showcss/parents))))
+        ;(origin-tag (car (reverse showcss/parents)))
+        (parents showcss/parents))
     (save-excursion
       (with-current-buffer source-buffer
         (goto-char (point-min))
@@ -397,7 +398,8 @@ matching selector (and its declarations)"
           (setq start-point (point))    ; set point
           (showcss/search "{")
           (showcss/test-selector
-           (buffer-substring-no-properties start-point (- (point) 1)) origin-tag type value)
+           (buffer-substring-no-properties
+            start-point (- (point) 1)) parents type value)
           (showcss/search "}")
           (if (looking-at "\n")
               (forward-char))
@@ -406,19 +408,35 @@ matching selector (and its declarations)"
           (setq locations (cons (list start-point end-point) locations)))))
     locations))
 
-(setq showcss/selector-list-temp)
-(defun showcss/test-selector(found-selectors origin-tag type value)
+(setq showcss/selector-list-temp)       ;deleteme
+(defun showcss/test-selector(found-selectors parents type value)
   "Test if the current selector applies to the current tag"
-  (let ((selectors (mapcar 's-trim (s-split "," found-selectors)))
+  (let ((selectors (mapcar 's-trim (s-split ",\\|\n" found-selectors)))
         (tag-name)
         (tag-id)
-        (tag-class))
+        (tag-class)
+        (current-tag-name (symbol-name (car (car (reverse parents))))))
     (dolist (selector selectors)
-      (setq showcss/selector-list-temp (cons selector showcss/selector-list-temp))
+      (setq showcss/selector-list-temp (cons selector showcss/selector-list-temp)) ;deleteme
+      (cond
+       ;; *
+       ((string= "*" selector)
+        t)
+       ;; X *
+       ((and (string= (car (last (s-split " " selector))) "*")
+             (string= current-tag-name (car (s-split " " selector))))
+        t)
+       ;; X Y Z ...  W#id X Y.class Z ...
+       ;((memq current-tag-name (reverse (pop (reverse (split " " selector)))))
+        ;t)
+
+       ;; X > Y
+       )
+
       ;; searched for: div id:#X class:.XX
       ;; *
       ;; something *
-      ;; x y             div ul{} p div{}
+      ;; x y, x y z             div ul{} p div{}
       ;; x>y
       ;; .class
       ;; tag.class
@@ -427,6 +445,14 @@ matching selector (and its declarations)"
       ;; x:nth-child(n)
       ))
   t
+)
+
+(defun showcss/is-descendent(selector)
+  "Work up through showcss/parents making sure all
+parts of selector match"
+
+  showcss/parents
+
 )
 
 
