@@ -397,9 +397,6 @@ matching selector (and its declarations)"
             (goto-char (point-min)))    ; if on first line of file
           (setq start-point (point))    ; set point
           (showcss/search "{")
-          (showcss/test-selector
-           (buffer-substring-no-properties
-            start-point (- (point) 1)) parents type value)
           (showcss/search "}")
           (if (looking-at "\n")
               (forward-char))
@@ -407,53 +404,6 @@ matching selector (and its declarations)"
 
           (setq locations (cons (list start-point end-point) locations)))))
     locations))
-
-(setq showcss/selector-list-temp)       ;deleteme
-(defun showcss/test-selector(found-selectors parents type value)
-  "Test if the current selector applies to the current tag"
-  (let ((selectors (mapcar 's-trim (s-split ",\\|\n" found-selectors)))
-        (tag-name)
-        (tag-id)
-        (tag-class)
-        (current-tag-name (symbol-name (car (car (reverse parents))))))
-    (dolist (selector selectors)
-      (setq showcss/selector-list-temp (cons selector showcss/selector-list-temp)) ;deleteme
-      (cond
-       ;; *
-       ((string= "*" selector)
-        t)
-       ;; X *
-       ((and (string= (car (last (s-split " " selector))) "*")
-             (string= current-tag-name (car (s-split " " selector))))
-        t)
-       ;; X Y Z ...  W#id X Y.class Z ...
-       ;((memq current-tag-name (reverse (pop (reverse (split " " selector)))))
-        ;t)
-
-       ;; X > Y
-       )
-
-      ;; searched for: div id:#X class:.XX
-      ;; *
-      ;; something *
-      ;; x y, x y z             div ul{} p div{}
-      ;; x>y
-      ;; .class
-      ;; tag.class
-      ;; #id
-      ;; tag#id
-      ;; x:nth-child(n)
-      ))
-  t
-)
-
-(defun showcss/is-descendent(selector)
-  "Work up through showcss/parents making sure all
-parts of selector match"
-
-  showcss/parents
-
-)
 
 
 (defun showcss/search(regexp &optional backwards)

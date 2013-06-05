@@ -4,7 +4,7 @@
 
 ** Overview
 
-Show CSS is a minor mode for emacs.
+Show CSS is a minor mode for Emacs.
 
 With showcss-mode turned on, as you navigate around an HTML file the
 matching css for that element will be displayed in another buffer.
@@ -12,15 +12,44 @@ matching css for that element will be displayed in another buffer.
 All the css will display combined in one buffer and any edits made
 there will be sent back to the source css buffer.
 
-*** What dosn't work
+[[http://i.imgur.com/8aqkIGY.gif]]
+
+*** What doesn't work
 
 All this is a fancy display for some regex searching.  What is does
-not do is any parsing of the found results to see if it actualy
+not do is apply any parsing of the found results to see if it actually
 applies to the current tag.
 
 The way it works now, is that for each tag and for each parent tag, it
 searches all the associated css buffers for any matches for the tag
 name, id name, and any class names.
+
+There is no css parsing, so a selector such as: div ul{} or div > ul{}
+won't won't mean anything to showcss.  If your on a div tag, both
+those results would be displayed even though they don't apply to the
+div tag.
+
+So in short, you get more info that you want.
+
+
+I am currently investigating how to deal with this.  Some options are:
+
+ 1. Use remote debugging with chrome
+ 2. Find a third party css parser
+ 3. Write a css parser in Emacs
+
+The first would be the easiest to program, but the most complex for the
+user.  They would have to start a browser, load a file in it, then
+connect to it from Emacs.  And then the info would be for a file in
+the browser, not the edited file in Emacs.  Also (I suspect) that I
+couldn't get the specific file location of the css that applies to
+the tag so I could display that buffer location in Emacs.
+
+The second option requires the user to install a third party library
+or program and has the same drawbacks as the first option.
+
+The third option would be the most difficult to build and realistically
+never support all css selectors, only the most common.
 
 
 ** Features
@@ -34,28 +63,16 @@ name, id name, and any class names.
    other mode such as sass-mode if your working with sass files
 
 
-** What it does not do
-
- - It won't support all selectors only most common
- - It is not 100% accurate
-
-
-** Dependancies
+** Dependencies
 
  - cl-lib
- - dom      wiki
+ - dom      http://www.emacswiki.org/cgi-bin/wiki?XmlParser
  - s        https://github.com/magnars/s.el#functions
 
 
-** Compatability
+*** Compatibility
 
-Emacs 24.2.1
-
-
-** Notes
-
- - Would like to use chrome dev tools or phantomjs or firebug to get
-   css information but...
+Emacs 24
 
 
 ** Older version
