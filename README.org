@@ -14,6 +14,18 @@ there will be sent back to the source css buffer.
 
 [[http://i.imgur.com/8aqkIGY.gif]]
 
+
+** Features
+
+ - Displays a breadcrumb of the current elements parents
+ - Displays the css for the current element grouped by file
+ - Each field that shows the css is editable, and any changes are sent
+   back to the source file
+ - <ctrl> x s in the display buffer, saves the source buffers
+ - The default mode showcss uses is css-mode, but it can be set to any
+   other mode such as sass-mode if your working with sass files
+
+
 *** What doesn't work
 
 All this is a fancy display for some regex searching.  What is does
@@ -31,6 +43,8 @@ div tag.
 
 So in short, you get more info that you want.
 
+
+**** Options
 
 I am currently investigating how to deal with this.  Some options are:
 
@@ -51,28 +65,51 @@ or program and has the same drawbacks as the first option.
 The third option would be the most difficult to build and realistically
 never support all css selectors, only the most common.
 
+If anyone has any ideas, I'd be glad to hear them!
 
-** Features
-
- - Displays a breadcrumb of the current elements parents
- - Displays the css for the current element grouped by file
- - Each field that shows the css is editable, and any changes are sent
-   back to the source file
- - <ctrl> x s in the display buffer, saves the source buffers
- - The default mode showcss uses is css-mode, but it can be set to any
-   other mode such as sass-mode if your working with sass files
 
 
 ** Dependencies
 
- - cl-lib
- - dom      http://www.emacswiki.org/cgi-bin/wiki?XmlParser
- - s        https://github.com/magnars/s.el#functions
+ - *cl-lib*
+ - *dom* - http://www.emacswiki.org/cgi-bin/wiki?XmlParser
+ - *s* - https://github.com/magnars/s.el#functions
+
+*cl-lib* is available through GNU ELPA, and *dom* and *s* are available
+through [[http://melpa.milkbox.net/][MELPA]]
 
 
-*** Compatibility
+** Compatibility
 
 Emacs 24
+
+
+** Usage
+
+Put this in your init.el or .emacs file:
+
+#+BEGIN_SRC emacs-lisp
+  (autoload 'showcss-mode "show_css"
+     "Display the css of the class or id the cursor is at" t)
+#+END_SRC
+
+Personally, I find this mode to distracting to use all the time, so I
+use this function to quickly toggle the mode on and off.
+
+#+BEGIN_SRC emacs-lisp
+(defun sm/toggle-showcss()
+  "Toggle showcss-mode"
+  (interactive)
+  (if (derived-mode-p
+       'html-mode
+       'nxml-mode
+       'nxhtml-mode
+       'web-mode
+       'handlebars-mode)
+      (showcss-mode 'toggle)
+    (message "Not in an html mode")))
+(global-set-key (kbd "C-c C-k") 'sm/toggle-showcss)
+#+END_SRC
 
 
 ** Older version
