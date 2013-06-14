@@ -21,7 +21,7 @@ there will be sent back to the source css buffer.
  - Displays the css for the current element grouped by file
  - Each field that shows the css is editable, and any changes are sent
    back to the source file
- - =<ctrl> x s= in the display buffer, saves the source buffers
+ - =ctrl-x ctrl-s= in the display buffer, saves the source buffers
  - The default mode showcss uses is css-mode, but it can be set to any
    other mode such as sass-mode if your working with sass files
 
