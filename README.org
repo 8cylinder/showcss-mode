@@ -76,12 +76,15 @@ If anyone has any ideas, I'd be glad to hear them!
 
 ** Dependencies
 
- - *cl-lib*
  - *dom* - http://www.emacswiki.org/cgi-bin/wiki?XmlParser
  - *s* - https://github.com/magnars/s.el#functions
+ - *websocket* - https://github.com/ahyatt/emacs-websocket
+ - *cl-lib*
+ - *json*
+ - *url-parse*
 
-*cl-lib* is available through GNU ELPA, and *dom* and *s* are available
-through [[http://melpa.milkbox.net/][MELPA]]
+*cl-lib* is available through GNU ELPA, and *dom*, *s*, and *websocket* are
+available through [[http://melpa.milkbox.net/][MELPA]].  *json* and *url-parse* are part of Emacs.
 
 
 ** Compatibility
