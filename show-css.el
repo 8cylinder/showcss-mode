@@ -7,6 +7,7 @@
 ;; Created: 1st February 2013
 ;; Keywords: hypermedia
 ;; URL: https://github.com/smmcg/showcss-mode
+;; Package-Requires: ((dom "1.0.1"))
 ;;
 ;; This file is not part of GNU Emacs.
 ;;
