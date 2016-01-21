@@ -267,7 +267,7 @@ Eg:
     (forward-char)
     ;; if not looking at a / or ! (comment or closing tag)
     (if (not (or (looking-at "\\(/\\|!\\)")
-                 (looking-back ">")))
+                 (looking-back ">" nil)))
         (progn
           (backward-char)
           (let ((bookmark-tag "<showcss />"))
