@@ -93,6 +93,7 @@
 
 (require 'buffer-combine)
 (require 'doom)
+(require 's)
 
 
 (defgroup showcss nil
