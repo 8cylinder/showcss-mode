@@ -542,5 +542,7 @@ git repository"
 
 
 (provide 'show-css)
-
+;; Local Variables:
+;; indent-tabs-mode: nil
+;; End:
 ;;; show-css.el ends here
