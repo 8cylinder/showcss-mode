@@ -7,7 +7,7 @@
 ;; Created: 1st February 2013
 ;; Keywords: hypermedia
 ;; URL: https://github.com/smmcg/showcss-mode
-;; Package-Requires: ((doom "1.3"))
+;; Package-Requires: ((doom "1.3") (s "1.10.0"))
 ;;
 ;; This file is not part of GNU Emacs.
 ;;
